@@ -1,4 +1,3 @@
 rootProject.name = "intro"
 
-//include("usual")
-include("usual")
+include("usual", "run-it")

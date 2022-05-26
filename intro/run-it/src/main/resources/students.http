@@ -1,0 +1,12 @@
+### list three students
+GET http://localhost:8051/students
+Accept: application/json
+### student 1 exist
+GET http://localhost:8051/students/1
+Accept: application/json
+
+### student 4 not exist
+GET http://localhost:8051/students/4
+Accept: application/json
+
+
