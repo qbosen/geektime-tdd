@@ -19,7 +19,6 @@ public class SingleOptionParserTest {
         TooManyArgumentsException e = assertThrows(TooManyArgumentsException.class, () -> {
             new SingleValueOptionParser<>(0, Integer::parseInt).parse(asList("-p", "8080", "8081"), option("p"));
         });
-
         assertEquals("p", e.getOption());
     }
 
@@ -39,11 +38,15 @@ public class SingleOptionParserTest {
     }
 
     @Test
+    public void should_parse_value_if_int_option_present() {
+        assertEquals(8080, new SingleValueOptionParser<>(0, Integer::parseInt).parse(asList("-p", "8080"), option("p")));
+    }
+
+    @Test
     public void should_not_accept_extra_argument_for_string_single_valued_option() {
         TooManyArgumentsException e = assertThrows(TooManyArgumentsException.class, () -> {
             new SingleValueOptionParser<>("", String::valueOf).parse(asList("-d", "/usr/logs", "/usr/vars"), option("d"));
         });
-
         assertEquals("d", e.getOption());
     }
 
@@ -61,5 +64,10 @@ public class SingleOptionParserTest {
     @Test
     public void should_set_default_value_to_empty_for_string_option() {
         assertEquals("", new SingleValueOptionParser<>("", String::valueOf).parse(asList(), option("d")));
+    }
+
+    @Test
+    public void should_parse_value_if_string_option_present() {
+        assertEquals("/usr/logs", new SingleValueOptionParser<>(0, String::valueOf).parse(asList("-d", "/usr/logs"), option("d")));
     }
 }
