@@ -6,7 +6,7 @@ package top.abosen.geektime.tdd.args;
  */
 
 public class TooManyArgumentsException extends RuntimeException {
-    private String option;
+    private final String option;
 
     public String getOption() {
         return option;

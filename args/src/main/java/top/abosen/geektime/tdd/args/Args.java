@@ -12,6 +12,7 @@ public class Args {
             Constructor<?> constructor = optionsClass.getDeclaredConstructors()[0];
             List<String> arguments = Arrays.asList(args);
             Object[] values = Arrays.stream(constructor.getParameters()).map(it -> parseOption(it, arguments)).toArray();
+            //noinspection unchecked
             return (T) constructor.newInstance(values);
         } catch (IllegalOptionException e) {
             throw e;
@@ -25,13 +26,13 @@ public class Args {
         return getOptionParser(parameter.getType()).parse(arguments, parameter.getAnnotation(Option.class));
     }
 
-    private static Map<Class<?>, OptionParser> PARSERS = Map.of(
+    private static final Map<Class<?>, OptionParser<?>> PARSERS = Map.of(
             boolean.class, new BooleanOptionParser(),
             int.class, new SingleValueOptionParser<>(0, Integer::parseInt),
             String.class, new SingleValueOptionParser<>("", String::valueOf)
     );
 
-    private static OptionParser getOptionParser(Class<?> type) {
+    private static OptionParser<?> getOptionParser(Class<?> type) {
         return PARSERS.get(type);
     }
 
