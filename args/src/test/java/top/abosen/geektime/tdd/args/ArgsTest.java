@@ -2,6 +2,7 @@ package top.abosen.geektime.tdd.args;
 
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import top.abosen.geektime.tdd.args.exceptions.IllegalOptionException;
 
 import static org.junit.jupiter.api.Assertions.*;
 

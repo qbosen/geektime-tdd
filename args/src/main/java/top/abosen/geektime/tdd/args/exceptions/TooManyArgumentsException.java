@@ -1,4 +1,4 @@
-package top.abosen.geektime.tdd.args;
+package top.abosen.geektime.tdd.args.exceptions;
 
 /**
  * @author qiubaisen
