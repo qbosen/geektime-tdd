@@ -40,19 +40,17 @@ class OptionParsers {
     }
 
     private static Optional<List<String>> values(List<String> arguments, Option option, int expectedSize) {
-        int index = arguments.indexOf("-" + option.value());
-        if (index == -1) {
-            return Optional.empty();
-        }
-        List<String> values = values(arguments, index);
+        return values(arguments, option).map(it -> checkSize(option, expectedSize, it));
+    }
 
+    private static List<String> checkSize(Option option, int expectedSize, List<String> values) {
         if (values.size() < expectedSize) {
             throw new InsufficientArgumentsException(option.value());
         }
         if (values.size() > expectedSize) {
             throw new TooManyArgumentsException(option.value());
         }
-        return Optional.of(values);
+        return values;
     }
 
     private static List<String> values(List<String> arguments, int index) {
