@@ -119,13 +119,18 @@ public class OptionParsersTest {
 
     @Nested
     class ListOptionParserTest {
-        //-g "this" "is"; {"this", "is"}
         @Test
         public void should_parse_list_value() {
             String[] value = OptionParsers.list(String[]::new, String::valueOf).parse(asList("-g", "this", "is"), option("g"));
             assertArrayEquals(new String[]{"this", "is"}, value);
         }
-        //default value []
+
+        @Test
+        public void should_not_treat_negative_int_as_flag() {
+            Integer[] value = OptionParsers.list(Integer[]::new, Integer::parseInt).parse(asList("-d", "-1", "-2"), option("d"));
+            assertArrayEquals(new Integer[]{-1, -2}, value);
+        }
+
 
         @Test
         public void should_use_empty_array_as_default_value() {
@@ -133,7 +138,6 @@ public class OptionParsersTest {
             assertEquals(0, value.length);
         }
 
-        //-d a; throw exception;
         @Test
         public void should_throw_exception_if_value_parser_cant_parse_value() {
             IllegalValueException e = assertThrows(IllegalValueException.class,
