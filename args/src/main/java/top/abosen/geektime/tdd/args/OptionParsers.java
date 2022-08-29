@@ -16,7 +16,7 @@ public class OptionParsers {
     private static final String FLAG_PATTERN = "^-[a-zA-Z-]+$";
 
     public static OptionParser<Integer[]> createIntArrayParser() {
-        return new ArrayValueParser<>(Integer::parseInt, Integer[]::new);
+        return createArrayValueParser(Integer::parseInt, Integer[]::new);
     }
 
     public static OptionParser<Integer> createIntParser() {
@@ -24,7 +24,7 @@ public class OptionParsers {
     }
 
     public static OptionParser<String[]> createStringArrayParser() {
-        return new ArrayValueParser<>(String::valueOf, String[]::new);
+        return createArrayValueParser(String::valueOf, String[]::new);
     }
 
     public static OptionParser<String> createStringParser() {
@@ -38,38 +38,18 @@ public class OptionParsers {
         };
     }
 
-    static class ArrayValueParser<T> implements OptionParser<T[]> {
-        private final Function<String, T> parser;
-        private final IntFunction<T[]> generator;
-
-        public ArrayValueParser(Function<String, T> parser, IntFunction<T[]> generator) {
-            this.parser = parser;
-            this.generator = generator;
-        }
-
-        @Override
-        public T[] parse(Option option, List<String> arguments) {
+    public static <T> OptionParser<T[]> createArrayValueParser(Function<String, T> parser, IntFunction<T[]> generator) {
+        return (option, arguments) -> {
             int index = arguments.indexOf("-" + option.value());
             int nextFlagIndex = IntStream.range(index + 1, arguments.size())
                     .filter(it -> arguments.get(it).matches(FLAG_PATTERN))
                     .findFirst().orElseGet(arguments::size);
             return arguments.subList(index + 1, nextFlagIndex).stream().map(parser).toArray(generator);
-        }
+        };
     }
 
-    static class BooleanParser implements OptionParser<Boolean> {
-        private BooleanParser() {
-        }
-
-        public static OptionParser<Boolean> createBooleanParser() {
-            return new BooleanParser();
-        }
-
-        @Override
-        public Boolean parse(Option option, List<String> arguments) {
-            Boolean value;
-            value = arguments.contains("-" + option.value());
-            return value;
-        }
+    public static OptionParser<Boolean> createBooleanParser() {
+        return (option, arguments) -> (Boolean) arguments.contains("-" + option.value());
     }
+
 }

@@ -35,7 +35,7 @@ public class Args {
     private static final Map<Class<?>, OptionParser<?>> PARSER_MAP = Map.of(
             int.class, OptionParsers.createIntParser(),
             String.class, OptionParsers.createStringParser(),
-            boolean.class, OptionParsers.BooleanParser.createBooleanParser(),
+            boolean.class, OptionParsers.createBooleanParser(),
             int[].class, OptionParsers.createIntArrayParser(),
             String[].class, OptionParsers.createStringArrayParser()
     );
