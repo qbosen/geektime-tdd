@@ -5,6 +5,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Parameter;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 
 /**
@@ -29,31 +30,80 @@ public class Args {
     }
 
     private static Object parseOption(Parameter parameter, List<String> arguments) {
-        Object value = null;
         Option option = parameter.getAnnotation(Option.class);
+        OptionParser<?> optionParser = getOptionParser(parameter.getType());
+        return optionParser.parse(option, arguments);
+    }
 
-        if (parameter.getType() == boolean.class) {
+    private static final Map<Class<?>, OptionParser<?>> PARSER_MAP = Map.of(
+            int.class, new IntParser(),
+            String.class, new StringParser(),
+            boolean.class, new BooleanParser(),
+            int[].class, new IntArrayParser(),
+            String[].class, new StringArrayParser()
+    );
+
+    private static <T> OptionParser<T> getOptionParser(Class<T> type) {
+        return (OptionParser<T>) PARSER_MAP.get(type);
+    }
+
+    static class BooleanParser implements OptionParser<Boolean> {
+        @Override
+        public Boolean parse(Option option, List<String> arguments) {
+            Boolean value;
             value = arguments.contains("-" + option.value());
-        } else if (parameter.getType() == int.class) {
-            int index = arguments.indexOf("-" + option.value());
-            value = Integer.parseInt(arguments.get(index + 1));
-        } else if (parameter.getType() == String.class) {
+            return value;
+        }
+    }
+
+    static class StringParser implements OptionParser<String> {
+        @Override
+        public String parse(Option option, List<String> arguments) {
+            String value;
             int index = arguments.indexOf("-" + option.value());
             value = arguments.get(index + 1);
-        } else if (parameter.getType() == String[].class) {
+            return value;
+        }
+    }
+
+    static class StringArrayParser implements OptionParser<String[]> {
+        @Override
+        public String[] parse(Option option, List<String> arguments) {
+            String[] value;
             int index = arguments.indexOf("-" + option.value());
             int nextFlagIndex = IntStream.range(index + 1, arguments.size())
                     .filter(it -> arguments.get(it).matches(FLAG_PATTERN))
                     .findFirst().orElseGet(arguments::size);
             value = arguments.subList(index + 1, nextFlagIndex).toArray(String[]::new);
-        } else if (parameter.getType() == int[].class) {
+            return value;
+        }
+    }
+
+    static class IntParser implements OptionParser<Integer> {
+        @Override
+        public Integer parse(Option option, List<String> arguments) {
+            Integer value;
+            int index = arguments.indexOf("-" + option.value());
+            value = Integer.parseInt(arguments.get(index + 1));
+            return value;
+        }
+    }
+
+    static class IntArrayParser implements OptionParser<int[]> {
+        @Override
+        public int[] parse(Option option, List<String> arguments) {
+            int[] value;
             int index = arguments.indexOf("-" + option.value());
             int nextFlagIndex = IntStream.range(index + 1, arguments.size())
                     .filter(it -> arguments.get(it).matches(FLAG_PATTERN))
                     .findFirst().orElseGet(arguments::size);
             value = arguments.subList(index + 1, nextFlagIndex).stream().mapToInt(Integer::parseInt).toArray();
+            return value;
         }
-        return value;
     }
 
+
+    interface OptionParser<T> {
+        T parse(Option option, List<String> arguments);
+    }
 }
