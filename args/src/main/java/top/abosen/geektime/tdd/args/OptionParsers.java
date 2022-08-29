@@ -20,7 +20,7 @@ public class OptionParsers {
     }
 
     public static OptionParser<Integer> createIntParser() {
-        return new SingleValueParser<>(Integer::parseInt);
+        return SingleValueParser.createSingleValueParser(Integer::parseInt);
     }
 
     public static OptionParser<String[]> createStringArrayParser() {
@@ -28,7 +28,7 @@ public class OptionParsers {
     }
 
     public static OptionParser<String> createStringParser() {
-        return new SingleValueParser<>(String::valueOf);
+        return SingleValueParser.createSingleValueParser(String::valueOf);
     }
 
     static class ArrayValueParser<T> implements OptionParser<T[]> {
@@ -53,8 +53,12 @@ public class OptionParsers {
     static class SingleValueParser<T> implements OptionParser<T> {
         private final Function<String, T> parser;
 
-        public SingleValueParser(Function<String, T> parser) {
+        private SingleValueParser(Function<String, T> parser) {
             this.parser = parser;
+        }
+
+        public static <T> OptionParser<T> createSingleValueParser(Function<String, T> parser) {
+            return (option, arguments) -> new SingleValueParser<T>(parser).parse(option, arguments);
         }
 
         @Override
