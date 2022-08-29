@@ -1,9 +1,9 @@
 package top.abosen.geektime.tdd.args;
 
-import java.util.List;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 /**
  * @author qiubaisen
@@ -15,8 +15,17 @@ public class OptionParsers {
 
     private static final String FLAG_PATTERN = "^-[a-zA-Z-]+$";
 
-    public static OptionParser<Integer[]> createIntArrayParser() {
+    public static OptionParser<Boolean> createBooleanParser() {
+        return (option, arguments) -> (Boolean) arguments.contains("-" + option.value());
+    }
+
+    public static OptionParser<Integer[]> createIntegerArrayParser() {
         return createArrayValueParser(Integer::parseInt, Integer[]::new);
+    }
+
+    public static OptionParser<int[]> createIntArrayParser() {
+        return (option, arguments) -> Stream.of(createIntegerArrayParser().parse(option, arguments))
+                .mapToInt(Integer::intValue).toArray();
     }
 
     public static OptionParser<Integer> createIntParser() {
@@ -38,7 +47,7 @@ public class OptionParsers {
         };
     }
 
-    public static <T> OptionParser<T[]> createArrayValueParser(Function<String, T> parser, IntFunction<T[]> generator) {
+    private static <T> OptionParser<T[]> createArrayValueParser(Function<String, T> parser, IntFunction<T[]> generator) {
         return (option, arguments) -> {
             int index = arguments.indexOf("-" + option.value());
             int nextFlagIndex = IntStream.range(index + 1, arguments.size())
@@ -46,10 +55,6 @@ public class OptionParsers {
                     .findFirst().orElseGet(arguments::size);
             return arguments.subList(index + 1, nextFlagIndex).stream().map(parser).toArray(generator);
         };
-    }
-
-    public static OptionParser<Boolean> createBooleanParser() {
-        return (option, arguments) -> (Boolean) arguments.contains("-" + option.value());
     }
 
 }

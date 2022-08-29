@@ -37,6 +37,7 @@ public class Args {
             String.class, OptionParsers.createStringParser(),
             boolean.class, OptionParsers.createBooleanParser(),
             int[].class, OptionParsers.createIntArrayParser(),
+            Integer[].class, OptionParsers.createIntegerArrayParser(),
             String[].class, OptionParsers.createStringArrayParser()
     );
 
