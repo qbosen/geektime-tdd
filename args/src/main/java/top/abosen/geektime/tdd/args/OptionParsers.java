@@ -20,7 +20,7 @@ public class OptionParsers {
     }
 
     public static OptionParser<Integer> createIntParser() {
-        return SingleValueParser.createSingleValueParser(Integer::parseInt);
+        return createSingleValueParser(Integer::parseInt);
     }
 
     public static OptionParser<String[]> createStringArrayParser() {
@@ -28,7 +28,14 @@ public class OptionParsers {
     }
 
     public static OptionParser<String> createStringParser() {
-        return SingleValueParser.createSingleValueParser(String::valueOf);
+        return createSingleValueParser(String::valueOf);
+    }
+
+    public static <T> OptionParser<T> createSingleValueParser(Function<String, T> parser) {
+        return (option, arguments) -> {
+            int index = arguments.indexOf("-" + option.value());
+            return parser.apply(arguments.get(index + 1));
+        };
     }
 
     static class ArrayValueParser<T> implements OptionParser<T[]> {
@@ -47,24 +54,6 @@ public class OptionParsers {
                     .filter(it -> arguments.get(it).matches(FLAG_PATTERN))
                     .findFirst().orElseGet(arguments::size);
             return arguments.subList(index + 1, nextFlagIndex).stream().map(parser).toArray(generator);
-        }
-    }
-
-    static class SingleValueParser<T> implements OptionParser<T> {
-        private final Function<String, T> parser;
-
-        private SingleValueParser(Function<String, T> parser) {
-            this.parser = parser;
-        }
-
-        public static <T> OptionParser<T> createSingleValueParser(Function<String, T> parser) {
-            return (option, arguments) -> new SingleValueParser<T>(parser).parse(option, arguments);
-        }
-
-        @Override
-        public T parse(Option option, List<String> arguments) {
-            int index = arguments.indexOf("-" + option.value());
-            return parser.apply(arguments.get(index + 1));
         }
     }
 
