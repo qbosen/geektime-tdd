@@ -1,11 +1,15 @@
 package top.abosen.geektime.tdd.args;
 
+import top.abosen.geektime.tdd.args.exceptions.IllegalOptionException;
+import top.abosen.geektime.tdd.args.exceptions.UnsupportedOptionTypeException;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Parameter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * @author qiubaisen
@@ -30,9 +34,14 @@ public class Args {
     }
 
     private static Object parseOption(Parameter parameter, List<String> arguments) {
-        Option option = parameter.getAnnotation(Option.class);
+        if (!parameter.isAnnotationPresent(Option.class)) {
+            throw new IllegalOptionException(parameter.getName());
+        }
         OptionParser<?> optionParser = getOptionParser(parameter.getType());
-        return optionParser.parse(option, arguments);
+        if (Objects.isNull(optionParser)) {
+            throw new UnsupportedOptionTypeException(parameter.getType().getSimpleName());
+        }
+        return optionParser.parse(parameter.getAnnotation(Option.class), arguments);
     }
 
     private static final Map<Class<?>, OptionParser<?>> PARSER_MAP = Map.of(

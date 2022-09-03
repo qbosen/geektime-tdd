@@ -1,5 +1,6 @@
 package top.abosen.geektime.tdd.args;
 
+import top.abosen.geektime.tdd.args.exceptions.IllegalValueException;
 import top.abosen.geektime.tdd.args.exceptions.InsufficientArgumentsException;
 import top.abosen.geektime.tdd.args.exceptions.TooManyArgumentsException;
 
@@ -24,12 +25,13 @@ public class OptionParsers {
     }
 
     public static <T> OptionParser<T> unary(Function<String, T> parser, T defaultValue) {
-        return (option, arguments) -> getOptionArguments(option, arguments, 1).map(it -> it.get(0)).map(parser).orElse(defaultValue);
+        return (option, arguments) -> getOptionArguments(option, arguments, 1)
+                .map(it -> it.get(0)).map(value -> parseValue(option, value, parser)).orElse(defaultValue);
     }
 
     public static <T> OptionParser<T[]> array(Function<String, T> parser, IntFunction<T[]> generator) {
         return (option, arguments) -> getOptionArguments(option, arguments)
-                .map(it -> it.stream().map(parser).toArray(generator))
+                .map(it -> it.stream().map(value -> parseValue(option, value, parser)).toArray(generator))
                 .orElseGet(() -> generator.apply(0));
     }
 
@@ -44,8 +46,17 @@ public class OptionParsers {
      */
     @SuppressWarnings({"unchecked", "unused"})
     public static <T, PA> OptionParser<PA> primaryArray(Function<String, T> parser, IntFunction<T[]> generator, Class<PA> primaryArrayType) {
-        return (option, arguments) -> (PA) ArrayUtils.toPrimitive(array(parser,generator).parse(option, arguments));
+        return (option, arguments) -> (PA) ArrayUtils.toPrimitive(array(parser, generator).parse(option, arguments));
     }
+
+    private static <T> T parseValue(Option option, String value, Function<String, T> valueParser) {
+        try {
+            return valueParser.apply(value);
+        } catch (Exception e) {
+            throw new IllegalValueException(option.value(), value);
+        }
+    }
+
 
     private static Optional<List<String>> getOptionArguments(Option option, List<String> arguments, int expectedSize) {
         return getOptionArguments(option, arguments).map(it -> {

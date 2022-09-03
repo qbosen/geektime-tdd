@@ -45,9 +45,10 @@ class OptionParsersTest {
         @ParameterizedTest
         @ValueSource(strings = {"-l 1", "-l 1 2"})
         public void should_not_accept_extra_argument_for_boolean_option(String arguments) {
-            assertThrows(TooManyArgumentsException.class, () ->
+            TooManyArgumentsException e = assertThrows(TooManyArgumentsException.class, () ->
                     OptionParsers.bool().parse(option("l"), asList(arguments.split("\\s+")))
             );
+            assertEquals("l", e.getOption());
         }
 
         // boolean: false
@@ -87,14 +88,16 @@ class OptionParsersTest {
         // with wrong number args: -p 1 2 / -d usr logs
         @Test
         public void should_not_accept_too_many_arguments_for_int_option_parser() {
-            assertThrows(TooManyArgumentsException.class, () ->
+            TooManyArgumentsException e = assertThrows(TooManyArgumentsException.class, () ->
                     OptionParsers.unary(Integer::parseInt, 0).parse(option("p"), asList("-p", "1", "2")));
+            assertEquals("p", e.getOption());
         }
 
         @Test
         public void should_not_accept_too_many_arguments_for_string_option_parser() {
-            assertThrows(TooManyArgumentsException.class, () ->
+            TooManyArgumentsException e = assertThrows(TooManyArgumentsException.class, () ->
                     OptionParsers.unary(String::valueOf, "").parse(option("d"), asList("-d", "usr", "logs")));
+            assertEquals("d", e.getOption());
         }
     }
 
