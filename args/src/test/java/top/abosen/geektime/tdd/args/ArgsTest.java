@@ -1,7 +1,11 @@
 package top.abosen.geektime.tdd.args;
 
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import top.abosen.geektime.tdd.args.exceptions.TooManyArgumentsException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -11,14 +15,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 public class ArgsTest {
     // happy path
-    // boolean -l
-    @Test
-    public void should_parse_bool() {
-        record Options(@Option("l") boolean logging) {
-        }
-        Options options = Args.parse(Options.class, "-l");
-        assertTrue(options.logging());
-    }
+
 
     //  integer -p 8080
     @Test
@@ -38,7 +35,7 @@ public class ArgsTest {
         assertEquals("usr/logs", options.directory());
     }
 
-    // todo array: -g this is/ -d 1 2 -3
+    // array: -g this is/ -d 1 2 -3
     @Test
     public void should_parse_string_array() {
         record Options(@Option("g") String[] groups) {
@@ -81,7 +78,26 @@ public class ArgsTest {
     }
 
     // sad path
-    // todo boolean with args: -l 1/ -l 1 2
+
+    @Nested
+    class BooleanOptionParserTest {
+        record Options(@Option("l") boolean logging) {
+        }
+
+        // boolean -l
+        @Test
+        public void should_parse_bool() {
+            Options options = Args.parse(Options.class, "-l");
+            assertTrue(options.logging());
+        }
+
+        // boolean with args: -l 1/ -l 1 2
+        @ParameterizedTest
+        @ValueSource(strings = {"-l 1", "-l 1 2"})
+        public void should_not_accept_extra_argument_for_boolean_option(String arguments) {
+            assertThrows(TooManyArgumentsException.class, () -> Args.parse(Options.class, arguments.split("\\s+")));
+        }
+    }
     // todo with wrong number args: -p 1 2 / -d usr logs
     // todo with incompatible arg: -p hello
 
