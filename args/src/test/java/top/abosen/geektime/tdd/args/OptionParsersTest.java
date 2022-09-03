@@ -34,8 +34,6 @@ class OptionParsersTest {
 
     @Nested
     class BooleanOptionParser {
-        record Options(@Option("l") boolean logging) {
-        }
 
         // boolean -l
         @Test
@@ -51,8 +49,12 @@ class OptionParsersTest {
                     OptionParsers.bool().parse(option("l"), asList(arguments.split("\\s+")))
             );
         }
-        // todo boolean: false
 
+        // boolean: false
+        @Test
+        public void should_set_default_value_to_false_if_option_not_present() {
+            assertFalse(OptionParsers.bool().parse(option("l"), asList()));
+        }
     }
 
     @Nested
@@ -61,16 +63,39 @@ class OptionParsersTest {
         //  integer -p 8080
         @Test
         public void should_parse_integer() {
-            assertEquals(8080, OptionParsers.unary(Integer::parseInt).parse(option("p"), asList("-p","8080")));
+            assertEquals(8080, OptionParsers.unary(Integer::parseInt, 0).parse(option("p"), asList("-p", "8080")));
         }
 
         //  string -d usr/logs
         @Test
         public void should_parse_string() {
-            assertEquals("usr/logs", OptionParsers.unary(String::valueOf).parse(option("d"), asList("-d", "usr/logs")));
+            assertEquals("usr/logs", OptionParsers.unary(String::valueOf, "").parse(option("d"), asList("-d", "usr/logs")));
         }
-        // todo integer: 0
-        // todo string: ""
+
+        //  integer: 0
+        @Test
+        public void should_set_default_value_to_0_if_int_option_not_present() {
+            assertEquals(0, OptionParsers.unary(Integer::parseInt, 0).parse(option("p"), asList()));
+        }
+
+        //  string: ""
+        @Test
+        public void should_set_default_value_to_empty_string_if_string_option_not_present() {
+            assertEquals("", OptionParsers.unary(String::valueOf, "").parse(option("d"), asList()));
+        }
+
+        // with wrong number args: -p 1 2 / -d usr logs
+        @Test
+        public void should_not_accept_too_many_arguments_for_int_option_parser() {
+            assertThrows(TooManyArgumentsException.class, () ->
+                    OptionParsers.unary(Integer::parseInt, 0).parse(option("p"), asList("-p", "1", "2")));
+        }
+
+        @Test
+        public void should_not_accept_too_many_arguments_for_string_option_parser() {
+            assertThrows(TooManyArgumentsException.class, () ->
+                    OptionParsers.unary(String::valueOf, "").parse(option("d"), asList("-d", "usr", "logs")));
+        }
     }
 
     @Nested
@@ -87,7 +112,17 @@ class OptionParsersTest {
         public void should_parse_integer_array() {
             assertArrayEquals(new int[]{1, 2, -3}, OptionParsers.primaryArray(Integer::parseInt, Integer[]::new, int[].class).parse(option("d"), asList("-d", "1", "2", "-3")));
         }
-        // todo array: []
 
+        // array: []
+
+        @Test
+        public void should_set_default_value_to_empty_array_if_int_array_option_not_present() {
+            assertArrayEquals(new int[]{}, OptionParsers.primaryArray(Integer::parseInt, Integer[]::new, int[].class).parse(option("d"), asList()));
+        }
+
+        @Test
+        public void should_set_default_value_to_empty_array_if_string_array_option_not_present() {
+            assertArrayEquals(new String[]{}, OptionParsers.array(String::valueOf, String[]::new).parse(option("g"), asList()));
+        }
     }
 }

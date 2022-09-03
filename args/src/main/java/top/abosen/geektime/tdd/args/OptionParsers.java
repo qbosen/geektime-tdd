@@ -23,11 +23,8 @@ public class OptionParsers {
         return (option, arguments) -> getOptionArguments(option, arguments, 0).isPresent();
     }
 
-    public static <T> OptionParser<T> unary(Function<String, T> parser) {
-        return (option, arguments) -> {
-            int index = arguments.indexOf("-" + option.value());
-            return parser.apply(arguments.get(index + 1));
-        };
+    public static <T> OptionParser<T> unary(Function<String, T> parser, T defaultValue) {
+        return (option, arguments) -> getOptionArguments(option, arguments, 1).map(it -> it.get(0)).map(parser).orElse(defaultValue);
     }
 
     public static <T> OptionParser<T[]> array(Function<String, T> parser, IntFunction<T[]> generator) {

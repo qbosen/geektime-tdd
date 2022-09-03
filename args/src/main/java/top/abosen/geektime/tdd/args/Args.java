@@ -11,7 +11,10 @@ import java.util.Map;
  * @author qiubaisen
  * @date 2022/8/29
  */
+@SuppressWarnings("unchecked")
 public class Args {
+    private Args() {
+    }
 
     public static <T> T parse(Class<T> optionClass, String... args) {
         Constructor<?> constructor = optionClass.getDeclaredConstructors()[0];
@@ -33,10 +36,10 @@ public class Args {
     }
 
     private static final Map<Class<?>, OptionParser<?>> PARSER_MAP = Map.of(
-            int.class, OptionParsers.unary(Integer::parseInt),
-            String.class, OptionParsers.unary(String::valueOf),
+            int.class, OptionParsers.unary(Integer::parseInt, 0),
+            String.class, OptionParsers.unary(String::valueOf, ""),
             boolean.class, OptionParsers.bool(),
-            int[].class, OptionParsers.primaryArray(Integer::parseInt, Integer[]::new,int[].class),
+            int[].class, OptionParsers.primaryArray(Integer::parseInt, Integer[]::new, int[].class),
             Integer[].class, OptionParsers.array(Integer::parseInt, Integer[]::new),
             String[].class, OptionParsers.array(String::valueOf, String[]::new)
     );

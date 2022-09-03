@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class ArgsTest {
 
 
-    // todo with wrong number args: -p 1 2 / -d usr logs
+    // todo with no option annotation present
     // todo with incompatible arg: -p hello
 
     // todo example1: -l -p 8080 -d /usr/logs
