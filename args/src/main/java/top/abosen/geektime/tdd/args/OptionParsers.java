@@ -8,7 +8,6 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 /**
  * @author qiubaisen
@@ -20,42 +19,35 @@ public class OptionParsers {
 
     private static final String FLAG_PATTERN = "^-[a-zA-Z-]+$";
 
-    public static OptionParser<Boolean> createBooleanParser() {
+    public static OptionParser<Boolean> bool() {
         return (option, arguments) -> getOptionArguments(option, arguments, 0).isPresent();
     }
 
-    public static OptionParser<Integer[]> createIntegerArrayParser() {
-        return createArrayValueParser(Integer::parseInt, Integer[]::new);
-    }
-
-    public static OptionParser<int[]> createIntArrayParser() {
-        return (option, arguments) -> Stream.of(createIntegerArrayParser().parse(option, arguments))
-                .mapToInt(Integer::intValue).toArray();
-    }
-
-    public static OptionParser<Integer> createIntParser() {
-        return createSingleValueParser(Integer::parseInt);
-    }
-
-    public static OptionParser<String[]> createStringArrayParser() {
-        return createArrayValueParser(String::valueOf, String[]::new);
-    }
-
-    public static OptionParser<String> createStringParser() {
-        return createSingleValueParser(String::valueOf);
-    }
-
-    public static <T> OptionParser<T> createSingleValueParser(Function<String, T> parser) {
+    public static <T> OptionParser<T> unary(Function<String, T> parser) {
         return (option, arguments) -> {
             int index = arguments.indexOf("-" + option.value());
             return parser.apply(arguments.get(index + 1));
         };
     }
 
-    private static <T> OptionParser<T[]> createArrayValueParser(Function<String, T> parser, IntFunction<T[]> generator) {
+    public static <T> OptionParser<T[]> array(Function<String, T> parser, IntFunction<T[]> generator) {
         return (option, arguments) -> getOptionArguments(option, arguments)
                 .map(it -> it.stream().map(parser).toArray(generator))
                 .orElseGet(() -> generator.apply(0));
+    }
+
+    /**
+     * 基础类型数组转换器
+     *
+     * @param parser    包装类型映射
+     * @param generator 包装类型数组构造器
+     * @param <T>       包装类型
+     * @param <PA>      基础类型数组
+     * @return 基础类型数组转换器
+     */
+    @SuppressWarnings({"unchecked", "unused"})
+    public static <T, PA> OptionParser<PA> primaryArray(Function<String, T> parser, IntFunction<T[]> generator, Class<PA> primaryArrayType) {
+        return (option, arguments) -> (PA) ArrayUtils.toPrimitive(array(parser,generator).parse(option, arguments));
     }
 
     private static Optional<List<String>> getOptionArguments(Option option, List<String> arguments, int expectedSize) {

@@ -33,12 +33,12 @@ public class Args {
     }
 
     private static final Map<Class<?>, OptionParser<?>> PARSER_MAP = Map.of(
-            int.class, OptionParsers.createIntParser(),
-            String.class, OptionParsers.createStringParser(),
-            boolean.class, OptionParsers.createBooleanParser(),
-            int[].class, OptionParsers.createIntArrayParser(),
-            Integer[].class, OptionParsers.createIntegerArrayParser(),
-            String[].class, OptionParsers.createStringArrayParser()
+            int.class, OptionParsers.unary(Integer::parseInt),
+            String.class, OptionParsers.unary(String::valueOf),
+            boolean.class, OptionParsers.bool(),
+            int[].class, OptionParsers.primaryArray(Integer::parseInt, Integer[]::new,int[].class),
+            Integer[].class, OptionParsers.array(Integer::parseInt, Integer[]::new),
+            String[].class, OptionParsers.array(String::valueOf, String[]::new)
     );
 
     private static <T> OptionParser<T> getOptionParser(Class<T> type) {
