@@ -1,7 +1,7 @@
 package top.abosen.geektime.tdd.args;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import top.abosen.geektime.tdd.args.exceptions.IllegalOptionException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -33,7 +33,6 @@ public class ArgsTest {
 
     //example1: -l -p 8080 -d /usr/logs
     @Test
-    @Disabled
     public void should_example_1() {
         Options options = Args.parse(Options.class, "-l", "-p", "8080", "-d", "/usr/logs");
         assertTrue(options.logging());
@@ -43,17 +42,16 @@ public class ArgsTest {
 
     //example2: -g this is a list -d 1 2 -3 5
     @Test
-    @Disabled
     public void should_example_2() {
         ListOptions options = Args.parse(ListOptions.class, "-g", "this", "is", "a", "list", "-d", "1", "2", "-3", "5");
         assertArrayEquals(new String[]{"this", "is", "a", "list"}, options.group());
-        assertArrayEquals(new int[]{1, 2, -3, 5}, options.decimals());
+        assertArrayEquals(new Integer[]{1, 2, -3, 5}, options.decimals());
     }
 
     static record Options(@Option("l") boolean logging, @Option("p") int port, @Option("d") String directory) {
     }
 
-    static record ListOptions(@Option("g") String[] group, @Option("d") int[] decimals) {
+    static record ListOptions(@Option("g") String[] group, @Option("d") Integer[] decimals) {
     }
 
 

@@ -1,5 +1,7 @@
 package top.abosen.geektime.tdd.args;
 
+import top.abosen.geektime.tdd.args.exceptions.IllegalOptionException;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Parameter;
 import java.util.Arrays;
@@ -27,9 +29,11 @@ public class Args {
     }
 
     private static final Map<Class<?>, OptionParser<?>> PARSERS = Map.of(
-            boolean.class, new BooleanOptionParser(),
-            int.class, new SingleValueOptionParser<>(0, Integer::parseInt),
-            String.class, new SingleValueOptionParser<>("", String::valueOf)
+            boolean.class, OptionParsers.bool(),
+            int.class, OptionParsers.unary(0, Integer::parseInt),
+            String.class, OptionParsers.unary("", String::valueOf),
+            String[].class, OptionParsers.list(String[]::new, String::valueOf),
+            Integer[].class, OptionParsers.list(Integer[]::new, Integer::parseInt)
     );
 
     private static OptionParser<?> getOptionParser(Class<?> type) {
