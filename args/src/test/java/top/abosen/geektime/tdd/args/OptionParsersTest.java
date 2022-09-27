@@ -4,14 +4,18 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.InOrder;
+import org.mockito.Mockito;
 import top.abosen.geektime.tdd.args.exceptions.IllegalValueException;
 import top.abosen.geektime.tdd.args.exceptions.InsufficientArgumentsException;
 import top.abosen.geektime.tdd.args.exceptions.TooManyArgumentsException;
 
 import java.lang.annotation.Annotation;
+import java.util.function.Function;
 
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
 import static top.abosen.geektime.tdd.args.OptionParsersTest.BooleanOptionParserTest.option;
 
 /**
@@ -22,6 +26,15 @@ public class OptionParsersTest {
 
     @Nested
     class UnaryOptionParser {
+
+        @Test
+        public void should_parse_value_if_option_present__behavior_verification() {
+            Function<String, Object> parser = mock(Function.class);
+
+            OptionParsers.unary(Mockito.any(), parser).parse(asList("-p", "8080"), option("p"));
+            // 确认接收到了一次指定参数的调用
+            Mockito.verify(parser).apply("8080");
+        }
 
         @Test
         public void should_not_accept_extra_argument_for_int_single_valued_option() {
@@ -121,8 +134,14 @@ public class OptionParsersTest {
     class ListOptionParserTest {
         @Test
         public void should_parse_list_value() {
-            String[] value = OptionParsers.list(String[]::new, String::valueOf).parse(asList("-g", "this", "is"), option("g"));
-            assertArrayEquals(new String[]{"this", "is"}, value);
+            Function<String, Object> parser = mock(Function.class);
+
+            OptionParsers.list(Object[]::new, parser).parse(asList("-g", "this", "is"), option("g"));
+
+            // 带顺序的验证
+            InOrder order = Mockito.inOrder(parser, parser);
+            order.verify(parser).apply("this");
+            order.verify(parser).apply("is");
         }
 
         @Test
