@@ -8,6 +8,7 @@ dependencies{
     implementation(Deps.jakartaPersistence)
     implementation(Deps.hibernate)
     implementation(Deps.h2)
+    testImplementation(Deps.mockitoTest)
 }
 
 noArg{
