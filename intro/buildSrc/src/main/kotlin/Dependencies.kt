@@ -22,4 +22,6 @@ object Deps{
    const val hibernateValidator = "org.hibernate:hibernate-validator:7.0.4.Final"
    const val hibernate= "org.hibernate:hibernate-core:6.0.0.CR2"
    const val h2= "com.h2database:h2:2.1.210"
+
+   const val mockitoTest = "org.mockito:mockito-core:4.8.0"
 }
