@@ -36,7 +36,7 @@ public class Args<T> {
         this.parsers = parsers;
     }
 
-    private T parse(String... args) {
+    public T parse(String... args) {
         try {
             Constructor<?> constructor = optionsClass.getDeclaredConstructors()[0];
             List<String> arguments = Arrays.asList(args);

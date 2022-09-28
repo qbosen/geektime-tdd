@@ -1,7 +1,10 @@
 package top.abosen.geektime.tdd.args;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import top.abosen.geektime.tdd.args.exceptions.IllegalOptionException;
+
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -54,5 +57,22 @@ public class ArgsTest {
     static record ListOptions(@Option("g") String[] group, @Option("d") Integer[] decimals) {
     }
 
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    @Test
+    public void should_parse_options_if_option_parser_provided() {
+        OptionParser boolParser = Mockito.mock(OptionParser.class);
+        OptionParser intParser = Mockito.mock(OptionParser.class);
+        OptionParser stringParser = Mockito.mock(OptionParser.class);
 
+        Mockito.when(boolParser.parse(Mockito.anyList(), Mockito.any())).thenReturn(true);
+        Mockito.when(intParser.parse(Mockito.anyList(), Mockito.any())).thenReturn(1000);
+        Mockito.when(stringParser.parse(Mockito.anyList(), Mockito.any())).thenReturn("parsed");
+
+        Args<MultiOptions> args = new Args<>(MultiOptions.class, Map.of(boolean.class, boolParser, int.class, intParser, String.class, stringParser));
+
+        MultiOptions options = args.parse("-l", "-p", "8080", "-d", "/usr/logs");
+        assertTrue(options.logging());
+        assertEquals(1000, options.port());
+        assertEquals("parsed", options.directory());
+    }
 }
