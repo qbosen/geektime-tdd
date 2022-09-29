@@ -14,23 +14,44 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  */
 class ArgsTest {
     // option without value -b
-    // option with value -p 8080
-    // option with values -g this is a list
-    // multiple options
-
     @Test
-    @Disabled
+    public void should_split_option_without_value() {
+        Map<String, String[]> args = Args.toMap("-b");
+
+        assertEquals(1, args.size());
+        assertArrayEquals(new String[]{}, args.get("b"));
+    }
+
+    // option with value -p 8080
+    @Test
+    public void should_split_option_with_value() {
+        Map<String, String[]> args = Args.toMap("-p", "8080");
+
+        assertEquals(1, args.size());
+        assertArrayEquals(new String[]{"8080"}, args.get("p"));
+    }
+
+    // option with values -g this is a list
+    @Test
+    public void should_split_option_with_values() {
+        Map<String, String[]> args = Args.toMap("-g", "this", "is", "a", "list");
+
+        assertEquals(1, args.size());
+        assertArrayEquals(new String[]{"this", "is", "a", "list"}, args.get("g"));
+    }
+
+    // multiple options
+    @Test
     public void should_split_args_to_map() {
         Map<String, String[]> args = Args.toMap("-b", "-p", "8080", "-d", "/usr/logs");
 
         assertEquals(3, args.size());
-        assertEquals(new String[]{}, args.get("b"));
-        assertEquals(new String[]{"8080"}, args.get("p"));
-        assertEquals(new String[]{"/usr/logs"}, args.get("d"));
+        assertArrayEquals(new String[]{}, args.get("b"));
+        assertArrayEquals(new String[]{"8080"}, args.get("p"));
+        assertArrayEquals(new String[]{"/usr/logs"}, args.get("d"));
     }
 
     @Test
-    @Disabled
     public void should_split_args_list_to_map() {
         Map<String, String[]> args = Args.toMap("-g", "this", "is", "a", "list", "-d", "1", "2", "-3", "5");
 
