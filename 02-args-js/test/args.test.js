@@ -128,22 +128,21 @@ function bool(defaultValue = false) {
     };
 }
 
-function int(defaultValue = 0) {
+function unary(defaultValue, parser) {
     return function (args) {
         if (!args) return defaultValue;
         if (args.length < 1) throw 'too few values';
         if (args.length > 1) throw 'too many values';
-        return parseInt(args[0]);
+        return parser(args[0]);
     };
 }
 
+function int(defaultValue = 0) {
+    return unary(defaultValue, parseInt);
+}
+
 function string(defaultValue = '') {
-    return function (args) {
-        if (!args) return defaultValue;
-        if (args.length < 1) throw 'too few values';
-        if (args.length > 1) throw 'too many values';
-        return args[0];
-    };
+    return unary(defaultValue, (args) => args);
 }
 
 function parse(schema, args) {
