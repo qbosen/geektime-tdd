@@ -1,0 +1,7 @@
+{
+  "name": "02-args-js",
+  "version": "1.0.0",
+  "devDependencies": {
+    "jest": "^29.1.2"
+  }
+}
