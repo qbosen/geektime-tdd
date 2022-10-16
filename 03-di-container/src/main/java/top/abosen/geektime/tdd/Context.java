@@ -22,15 +22,9 @@ public class Context {
     void bind(Class<Type> type, Class<Implementation> implementation) {
         Constructor<Implementation> injectConstructor = getInjectConstructor(implementation);
 
-        providers.put(type, (Provider<Implementation>) () -> {
-            try {
-                Object[] dependencies = Arrays.stream(injectConstructor.getParameters()).map(parameter -> get(parameter.getType())).toArray();
-                return (Implementation) injectConstructor.newInstance(dependencies);
-            } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
-                throw new RuntimeException(e);
-            }
-        });
+        providers.put(type, new ConstructorInjectionProvider(injectConstructor));
     }
+
 
     private static <Type> Constructor<Type> getInjectConstructor(Class<Type> implementation) {
         List<Constructor<?>> injectConstructors = Arrays.stream(implementation.getConstructors())
@@ -55,5 +49,31 @@ public class Context {
 
     public <Type> Optional<Type> getOpt(Class<Type> type) {
         return Optional.ofNullable(providers.get(type)).map(it -> ((Provider<Type>) it).get());
+    }
+
+    private final class ConstructorInjectionProvider<Type> implements Provider<Type> {
+        private final Constructor<Type> injectConstructor;
+        private boolean constructing = false;
+
+        private ConstructorInjectionProvider(Constructor<Type> injectConstructor) {
+            this.injectConstructor = injectConstructor;
+        }
+
+        @Override
+        public Type get() {
+            if (constructing) {
+                throw new CyclicDependenciesException();
+            }
+            try {
+                constructing = true;
+                Object[] dependencies = Arrays.stream(injectConstructor.getParameters()).map(parameter -> Context.this.get(parameter.getType())).toArray();
+                return (Type) injectConstructor.newInstance(dependencies);
+            } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
+                throw new RuntimeException(e);
+            } finally {
+                constructing = false;
+            }
+        }
+
     }
 }

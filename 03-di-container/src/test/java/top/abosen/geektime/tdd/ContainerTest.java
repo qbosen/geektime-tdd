@@ -89,6 +89,7 @@ public class ContainerTest {
                 assertEquals("indirect dependency", ((DependencyWithInjectConstructor) dependency).getDependency());
             }
 
+
             //todo: multi inject constructor
             @Test
             public void should_throw_exception_if_multi_inject_constructors_provided() {
@@ -114,10 +115,22 @@ public class ContainerTest {
                 });
             }
 
+            // todo A -> B -> A
             @Test
             public void should_throw_exception_if_cyclic_dependencies_found() {
                 context.bind(Component.class, ComponentWithInjectConstructor.class);
                 context.bind(Dependency.class, DependencyDependedOnComponent.class);
+
+                assertThrows(CyclicDependenciesException.class, () -> context.get(Component.class));
+            }
+
+
+            // todo A -> B -> C -> A
+            @Test
+            public void should_throw_exception_if_transitive_cyclic_dependencies_found() {
+                context.bind(Component.class, ComponentWithInjectConstructor.class);
+                context.bind(Dependency.class, DependencyDependsOnAnotherDependency.class);
+                context.bind(AnotherDependency.class, AnotherDependencyDependOnComponent.class);
 
                 assertThrows(CyclicDependenciesException.class, () -> context.get(Component.class));
             }
@@ -148,6 +161,9 @@ interface Component {
 }
 
 interface Dependency {
+}
+
+interface AnotherDependency {
 }
 
 class ComponentWithDefaultConstructor implements Component {
@@ -212,5 +228,31 @@ class DependencyDependedOnComponent implements Dependency {
 
     public Component getComponent() {
         return component;
+    }
+}
+
+class AnotherDependencyDependOnComponent implements AnotherDependency{
+    private Component component;
+
+    @Inject
+    public AnotherDependencyDependOnComponent(Component component) {
+        this.component = component;
+    }
+
+    public Component getComponent() {
+        return component;
+    }
+}
+
+class DependencyDependsOnAnotherDependency implements Dependency {
+    private AnotherDependency anotherDependency;
+
+    @Inject
+    public DependencyDependsOnAnotherDependency(AnotherDependency anotherDependency) {
+        this.anotherDependency = anotherDependency;
+    }
+
+    public AnotherDependency getAnotherDependency() {
+        return anotherDependency;
     }
 }
