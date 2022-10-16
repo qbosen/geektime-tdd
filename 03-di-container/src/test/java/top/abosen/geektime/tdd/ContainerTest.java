@@ -5,6 +5,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.util.Optional;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -35,6 +37,16 @@ public class ContainerTest {
 
         //todo: abstract class
         //todo: interface
+        //todo: components does not exist
+        @Test
+        public void should_throw_exception_if_component_not_defined() {
+            assertThrows(DependencyNotFountException.class, () -> context.get(Component.class));
+        }
+   @Test
+        public void should_return_empty_if_component_not_defined_with_optional_get() {
+            Optional<Component> component = context.getOpt(Component.class);
+            assertTrue(component.isEmpty());
+        }
 
         @Nested
         public class ConstructorInjection {
@@ -84,6 +96,7 @@ public class ContainerTest {
                     context.bind(Component.class, ComponentWithMultiInjectConstructors.class);
                 });
             }
+
             //todo: no default constructor
             @Test
             public void should_throw_exception_if_no_inject_nor_default_constructor_provided() {
@@ -93,7 +106,21 @@ public class ContainerTest {
             }
 
             //todo: dependencies not exist
+            @Test
+            public void should_throw_exception_if_dependency_not_exist() {
+                context.bind(Component.class, ComponentWithInjectConstructor.class);
+                assertThrows(DependencyNotFountException.class, () -> {
+                    context.get(Component.class);
+                });
+            }
 
+            @Test
+            public void should_throw_exception_if_cyclic_dependencies_found() {
+                context.bind(Component.class, ComponentWithInjectConstructor.class);
+                context.bind(Dependency.class, DependencyDependedOnComponent.class);
+
+                assertThrows(CyclicDependenciesException.class, () -> context.get(Component.class));
+            }
         }
 
         @Nested
@@ -156,10 +183,12 @@ class ComponentWithMultiInjectConstructors implements Component {
         this.value = value;
     }
 }
+
 class ComponentWithNoInjectNorDefaultConstructors implements Component {
     public ComponentWithNoInjectNorDefaultConstructors(String name) {
     }
 }
+
 class DependencyWithInjectConstructor implements Dependency {
     private String dependency;
 
@@ -170,5 +199,18 @@ class DependencyWithInjectConstructor implements Dependency {
 
     public String getDependency() {
         return dependency;
+    }
+}
+
+class DependencyDependedOnComponent implements Dependency {
+    private Component component;
+
+    @Inject
+    public DependencyDependedOnComponent(Component component) {
+        this.component = component;
+    }
+
+    public Component getComponent() {
+        return component;
     }
 }
