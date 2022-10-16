@@ -22,9 +22,18 @@ public class Context {
     void bind(Class<Type> type, Class<Implementation> implementation) {
         Constructor<Implementation> injectConstructor = getInjectConstructor(implementation);
 
-        providers.put(type, new ConstructorInjectionProvider(injectConstructor));
+        providers.put(type, new ConstructorInjectionProvider(type, injectConstructor));
     }
 
+
+    public <Type> Type get(Class<Type> type) {
+        return getOpt(type).orElseThrow(() -> new DependencyNotFountException(type, type));
+    }
+
+
+    public <Type> Optional<Type> getOpt(Class<Type> type) {
+        return Optional.ofNullable(providers.get(type)).map(it -> ((Provider<Type>) it).get());
+    }
 
     private static <Type> Constructor<Type> getInjectConstructor(Class<Type> implementation) {
         List<Constructor<?>> injectConstructors = Arrays.stream(implementation.getConstructors())
@@ -43,31 +52,30 @@ public class Context {
         });
     }
 
-    public <Type> Type get(Class<Type> type) {
-        return getOpt(type).orElseThrow(DependencyNotFountException::new);
-    }
-
-    public <Type> Optional<Type> getOpt(Class<Type> type) {
-        return Optional.ofNullable(providers.get(type)).map(it -> ((Provider<Type>) it).get());
-    }
-
     private final class ConstructorInjectionProvider<Type> implements Provider<Type> {
+        private Class<?> componentType;
         private final Constructor<Type> injectConstructor;
         private boolean constructing = false;
 
-        private ConstructorInjectionProvider(Constructor<Type> injectConstructor) {
+        public ConstructorInjectionProvider(Class<?> component, Constructor<Type> injectConstructor) {
+            this.componentType = component;
             this.injectConstructor = injectConstructor;
         }
 
         @Override
         public Type get() {
             if (constructing) {
-                throw new CyclicDependenciesException();
+                throw new CyclicDependenciesFoundException(componentType);
             }
             try {
                 constructing = true;
-                Object[] dependencies = Arrays.stream(injectConstructor.getParameters()).map(parameter -> Context.this.get(parameter.getType())).toArray();
+                Object[] dependencies = Arrays.stream(injectConstructor.getParameters())
+                        .map(parameter -> Context.this.getOpt(parameter.getType())
+                                .orElseThrow(() -> new DependencyNotFountException(parameter.getType(), componentType))
+                        ).toArray();
                 return (Type) injectConstructor.newInstance(dependencies);
+            } catch (CyclicDependenciesFoundException e) {
+                throw new CyclicDependenciesFoundException(componentType, e);
             } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
                 throw new RuntimeException(e);
             } finally {

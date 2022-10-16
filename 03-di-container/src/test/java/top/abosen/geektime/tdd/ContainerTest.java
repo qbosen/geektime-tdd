@@ -42,7 +42,8 @@ public class ContainerTest {
         public void should_throw_exception_if_component_not_defined() {
             assertThrows(DependencyNotFountException.class, () -> context.get(Component.class));
         }
-   @Test
+
+        @Test
         public void should_return_empty_if_component_not_defined_with_optional_get() {
             Optional<Component> component = context.getOpt(Component.class);
             assertTrue(component.isEmpty());
@@ -110,9 +111,20 @@ public class ContainerTest {
             @Test
             public void should_throw_exception_if_dependency_not_exist() {
                 context.bind(Component.class, ComponentWithInjectConstructor.class);
-                assertThrows(DependencyNotFountException.class, () -> {
-                    context.get(Component.class);
-                });
+                DependencyNotFountException exception = assertThrows(DependencyNotFountException.class, () -> context.get(Component.class));
+
+                assertEquals(Dependency.class, exception.getDependency());
+            }
+
+            @Test
+            public void should_throw_exception_if_transitive_dependency_not_found() {
+                context.bind(Component.class, ComponentWithInjectConstructor.class);
+                context.bind(Dependency.class, DependencyWithInjectConstructor.class);
+
+                DependencyNotFountException exception = assertThrows(DependencyNotFountException.class, () -> context.get(Component.class));
+
+                assertEquals(String.class, exception.getDependency());
+                assertEquals(Dependency.class, exception.getComponent());
             }
 
             // todo A -> B -> A
@@ -121,7 +133,12 @@ public class ContainerTest {
                 context.bind(Component.class, ComponentWithInjectConstructor.class);
                 context.bind(Dependency.class, DependencyDependedOnComponent.class);
 
-                assertThrows(CyclicDependenciesException.class, () -> context.get(Component.class));
+                CyclicDependenciesFoundException exception = assertThrows(CyclicDependenciesFoundException.class, () -> context.get(Component.class));
+
+
+                assertEquals(3, exception.getComponents().length);
+                assertArrayEquals(new Class[]{Component.class, Dependency.class, Component.class}, exception.getComponents());
+
             }
 
 
@@ -132,7 +149,10 @@ public class ContainerTest {
                 context.bind(Dependency.class, DependencyDependsOnAnotherDependency.class);
                 context.bind(AnotherDependency.class, AnotherDependencyDependOnComponent.class);
 
-                assertThrows(CyclicDependenciesException.class, () -> context.get(Component.class));
+                CyclicDependenciesFoundException exception = assertThrows(CyclicDependenciesFoundException.class, () -> context.get(Component.class));
+
+                assertEquals(4, exception.getComponents().length);
+                assertArrayEquals(new Class[]{Component.class, Dependency.class, AnotherDependency.class, Component.class}, exception.getComponents());
             }
         }
 
@@ -231,7 +251,7 @@ class DependencyDependedOnComponent implements Dependency {
     }
 }
 
-class AnotherDependencyDependOnComponent implements AnotherDependency{
+class AnotherDependencyDependOnComponent implements AnotherDependency {
     private Component component;
 
     @Inject
