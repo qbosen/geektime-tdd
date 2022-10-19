@@ -27,3 +27,13 @@ ch1-10:伦敦学派的实现, 明确的架构愿景
 JavaScript语言实现, 应该遵循该语言的特性;
 
 动态语言自动化重构工具支持有限;
+
+## 注入容器
+
+### [03-di-explained](03-di-explained)
+
+Guice 和 jakarta inject 实例, 阐述 ioc的基本功能
+
+### [03-di-container](03-di-container)
+
+注入容器实现
