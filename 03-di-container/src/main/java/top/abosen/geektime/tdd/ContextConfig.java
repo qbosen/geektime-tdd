@@ -16,14 +16,24 @@ public class ContextConfig {
 
     interface ComponentProvider<T> {
         T get(Context context);
+
+        List<Class<?>> getDependencies();
     }
 
     private Map<Class<?>, ComponentProvider<?>> providers = new HashMap<>();
-    private Map<Class<?>, List<Class<?>>> dependencies = new HashMap<>();
 
     public <Type> void bind(Class<Type> type, Type instance) {
-        providers.put(type, (context) -> instance);
-        dependencies.put(type, Arrays.asList());
+        providers.put(type, new ComponentProvider<Type>() {
+            @Override
+            public Type get(Context context) {
+                return instance;
+            }
+
+            @Override
+            public List<Class<?>> getDependencies() {
+                return Arrays.asList();
+            }
+        });
     }
 
     public <Type, Implementation extends Type>
@@ -31,11 +41,10 @@ public class ContextConfig {
         Constructor<Implementation> injectConstructor = getInjectConstructor(implementation);
 
         providers.put(type, new ConstructorInjectionProvider(injectConstructor));
-        dependencies.put(type, Arrays.stream(injectConstructor.getParameters()).map(Parameter::getType).collect(Collectors.toList()));
     }
 
     public Context getContext() {
-        dependencies.keySet().forEach(component -> checkDependencies(component, new Stack<>()));
+        providers.keySet().forEach(component -> checkDependencies(component, new ArrayDeque<>()));
         return new Context() {
             @Override
             public <Type> Type get(Class<Type> type) {
@@ -49,17 +58,19 @@ public class ContextConfig {
         };
     }
 
-    private void checkDependencies(Class<?> component, Stack<Class<?>> visiting) {
-        for (Class<?> dependency : dependencies.get(component)) {
-            if (!dependencies.containsKey(dependency)) {
+    private void checkDependencies(Class<?> component, Deque<Class<?>> visiting) {
+        for (Class<?> dependency : providers.get(component).getDependencies()) {
+            if (!providers.containsKey(dependency)) {
                 throw new DependencyNotFountException(dependency, component);
             }
             if (visiting.contains(dependency)) {
-                throw new CyclicDependenciesFoundException(dependency, visiting);
+                List<Class<?>> cyclicPath = new ArrayList<>(visiting);
+                cyclicPath.add(dependency);
+                throw new CyclicDependenciesFoundException(cyclicPath);
             }
-            visiting.push(dependency);
+            visiting.addLast(dependency);
             checkDependencies(dependency, visiting);
-            visiting.pop();
+            visiting.removeLast();
         }
     }
 
@@ -85,6 +96,11 @@ public class ContextConfig {
 
         public ConstructorInjectionProvider(Constructor<Type> injectConstructor) {
             this.injectConstructor = injectConstructor;
+        }
+
+        @Override
+        public List<Class<?>> getDependencies() {
+            return Arrays.stream(injectConstructor.getParameters()).map(Parameter::getType).collect(Collectors.toList());
         }
 
         @Override
