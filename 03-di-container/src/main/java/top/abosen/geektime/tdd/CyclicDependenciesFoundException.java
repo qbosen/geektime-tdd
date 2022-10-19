@@ -1,6 +1,7 @@
 package top.abosen.geektime.tdd;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author qiubaisen
@@ -8,16 +9,7 @@ import java.util.*;
  */
 public class CyclicDependenciesFoundException extends RuntimeException {
 
-    private List<Class<?>> components = new ArrayList<>();
-
-    public CyclicDependenciesFoundException(Class<?> componentType) {
-        components.add(componentType);
-    }
-
-    public CyclicDependenciesFoundException(Class<?> componentType, CyclicDependenciesFoundException e) {
-        components.add(componentType);
-        components.addAll(e.components);
-    }
+    private final List<Class<?>> components;
 
     public CyclicDependenciesFoundException(Class<?> dependency, List<Class<?>> visiting) {
         components = new ArrayList<>(visiting);

@@ -30,7 +30,7 @@ public class ContextConfig {
     void bind(Class<Type> type, Class<Implementation> implementation) {
         Constructor<Implementation> injectConstructor = getInjectConstructor(implementation);
 
-        providers.put(type, new ConstructorInjectionProvider(type, injectConstructor));
+        providers.put(type, new ConstructorInjectionProvider(injectConstructor));
         dependencies.put(type, Arrays.stream(injectConstructor.getParameters()).map(Parameter::getType).collect(Collectors.toList()));
     }
 
@@ -80,34 +80,21 @@ public class ContextConfig {
         });
     }
 
-    private final class ConstructorInjectionProvider<Type> implements ComponentProvider<Type> {
-        private Class<?> componentType;
+    private static final class ConstructorInjectionProvider<Type> implements ComponentProvider<Type> {
         private final Constructor<Type> injectConstructor;
-        private boolean constructing = false;
 
-        public ConstructorInjectionProvider(Class<?> component, Constructor<Type> injectConstructor) {
-            this.componentType = component;
+        public ConstructorInjectionProvider(Constructor<Type> injectConstructor) {
             this.injectConstructor = injectConstructor;
         }
 
         @Override
         public Type get(Context context) {
-            if (constructing) {
-                throw new CyclicDependenciesFoundException(componentType);
-            }
             try {
-                constructing = true;
                 Object[] dependencies = Arrays.stream(injectConstructor.getParameters())
-                        .map(parameter -> context.getOpt(parameter.getType())
-                                .orElseThrow(() -> new DependencyNotFountException(parameter.getType(), componentType))
-                        ).toArray();
+                        .map(parameter -> context.get(parameter.getType())).toArray();
                 return injectConstructor.newInstance(dependencies);
-            } catch (CyclicDependenciesFoundException e) {
-                throw new CyclicDependenciesFoundException(componentType, e);
             } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
                 throw new RuntimeException(e);
-            } finally {
-                constructing = false;
             }
         }
 
