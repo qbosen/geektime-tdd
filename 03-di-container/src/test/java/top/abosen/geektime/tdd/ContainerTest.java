@@ -134,13 +134,13 @@ public class ContainerTest {
                 contextConfig.bind(Component.class, ComponentWithInjectConstructor.class);
                 contextConfig.bind(Dependency.class, DependencyDependedOnComponent.class);
 
-                CyclicDependenciesFoundException exception = assertThrows(CyclicDependenciesFoundException.class, () -> contextConfig.getContext().get(Component.class));
-
+                CyclicDependenciesFoundException exception = assertThrows(CyclicDependenciesFoundException.class, () -> contextConfig.getContext());
 
                 assertEquals(3, exception.getComponents().length);
                 assertArrayEquals(new Class[]{Component.class, Dependency.class, Component.class}, exception.getComponents());
 
             }
+
 
 
             // todo A -> B -> C -> A
@@ -150,7 +150,7 @@ public class ContainerTest {
                 contextConfig.bind(Dependency.class, DependencyDependsOnAnotherDependency.class);
                 contextConfig.bind(AnotherDependency.class, AnotherDependencyDependOnComponent.class);
 
-                CyclicDependenciesFoundException exception = assertThrows(CyclicDependenciesFoundException.class, () -> contextConfig.getContext().get(Component.class));
+                CyclicDependenciesFoundException exception = assertThrows(CyclicDependenciesFoundException.class, () -> contextConfig.getContext());
 
                 assertEquals(4, exception.getComponents().length);
                 assertArrayEquals(new Class[]{Component.class, Dependency.class, AnotherDependency.class, Component.class}, exception.getComponents());
