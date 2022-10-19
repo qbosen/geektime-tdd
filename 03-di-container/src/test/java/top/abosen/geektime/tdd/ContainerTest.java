@@ -112,7 +112,7 @@ public class ContainerTest {
             @Test
             public void should_throw_exception_if_dependency_not_exist() {
                 contextConfig.bind(Component.class, ComponentWithInjectConstructor.class);
-                DependencyNotFountException exception = assertThrows(DependencyNotFountException.class, () -> contextConfig.getContext().get(Component.class));
+                DependencyNotFountException exception = assertThrows(DependencyNotFountException.class, () -> contextConfig.getContext());
 
                 assertEquals(Dependency.class, exception.getDependency());
             }
@@ -122,7 +122,7 @@ public class ContainerTest {
                 contextConfig.bind(Component.class, ComponentWithInjectConstructor.class);
                 contextConfig.bind(Dependency.class, DependencyWithInjectConstructor.class);
 
-                DependencyNotFountException exception = assertThrows(DependencyNotFountException.class, () -> contextConfig.getContext().get(Component.class));
+                DependencyNotFountException exception = assertThrows(DependencyNotFountException.class, () -> contextConfig.getContext());
 
                 assertEquals(String.class, exception.getDependency());
                 assertEquals(Dependency.class, exception.getComponent());
