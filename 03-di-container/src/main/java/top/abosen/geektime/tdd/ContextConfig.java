@@ -32,7 +32,6 @@ public class ContextConfig {
 
     public <Type, Implementation extends Type>
     void bind(Class<Type> type, Class<Implementation> implementation) {
-
         providers.put(type, new ConstructorInjectionProvider<>(implementation));
     }
 

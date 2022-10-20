@@ -3,11 +3,13 @@ package top.abosen.geektime.tdd;
 import jakarta.inject.Inject;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Parameter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @author qiubaisen
@@ -15,14 +17,19 @@ import java.util.stream.Collectors;
  */
 final class ConstructorInjectionProvider<Type> implements ContextConfig.ComponentProvider<Type> {
     private final Constructor<Type> injectConstructor;
+    private final List<Field> injectFields;
 
     public ConstructorInjectionProvider(Class<Type> component) {
         this.injectConstructor = getInjectConstructor(component);
+        this.injectFields = getInjectFields(component);
     }
 
     @Override
     public List<Class<?>> getDependencies() {
-        return Arrays.stream(injectConstructor.getParameters()).map(Parameter::getType).collect(Collectors.toList());
+        return Stream.concat(
+                Arrays.stream(injectConstructor.getParameters()).map(Parameter::getType),
+                injectFields.stream().map(Field::getType)
+        ).toList();
     }
 
     @Override
@@ -30,7 +37,11 @@ final class ConstructorInjectionProvider<Type> implements ContextConfig.Componen
         try {
             Object[] dependencies = Arrays.stream(injectConstructor.getParameters())
                     .map(parameter -> context.get(parameter.getType())).toArray();
-            return injectConstructor.newInstance(dependencies);
+            Type instance = injectConstructor.newInstance(dependencies);
+            for (Field field : injectFields) {
+                field.set(instance, context.get(field.getType()));
+            }
+            return instance;
         } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
             throw new RuntimeException(e);
         }
@@ -46,11 +57,20 @@ final class ConstructorInjectionProvider<Type> implements ContextConfig.Componen
 
         return (Constructor<Type>) injectConstructors.stream().findFirst().orElseGet(() -> {
             try {
-                return implementation.getConstructor();
+                return implementation.getDeclaredConstructor();
             } catch (NoSuchMethodException e) {
                 throw new IllegalComponentException();
             }
         });
     }
 
+    private static <Type> List<Field> getInjectFields(Class<Type> component) {
+        List<Field> injectFields = new ArrayList<>();
+        Class<?> current = component;
+        while (current != Object.class) {
+            injectFields.addAll(Arrays.stream(current.getDeclaredFields()).filter(it -> it.isAnnotationPresent(Inject.class)).toList());
+            current = current.getSuperclass();
+        }
+        return injectFields;
+    }
 }
