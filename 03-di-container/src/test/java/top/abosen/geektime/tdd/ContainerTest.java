@@ -30,7 +30,6 @@ public class ContainerTest {
 
     @Nested
     public class ComponentConstruction {
-        //todo: instance
         @Test
         public void should_bind_type_to_a_specific_instance() {
             Component instance = new Component() {
@@ -43,7 +42,6 @@ public class ContainerTest {
         //todo: abstract class
         //todo: interface
 
-        //todo: components does not exist
         @Test
         public void should_throw_exception_if_component_not_defined() {
             assertThrows(DependencyNotFountException.class, () -> config.getContext().get(Component.class));
@@ -57,7 +55,6 @@ public class ContainerTest {
 
         @Nested
         public class ConstructorInjection {
-            //todo: no args constructor
             @Test
             public void should_bind_type_to_a_class_with_default_constructor() {
                 config.bind(Component.class, ComponentWithDefaultConstructor.class);
@@ -67,7 +64,6 @@ public class ContainerTest {
                 assertTrue(instance instanceof ComponentWithDefaultConstructor);
             }
 
-            //todo: with dependencies
             @Test
             public void should_bind_type_to_a_class_with_inject_constructor() {
                 Dependency dependency = new Dependency() {
@@ -80,7 +76,6 @@ public class ContainerTest {
                 assertSame(dependency, ((ComponentWithInjectConstructor) instance).getDependency());
             }
 
-            //todo: A -> B -> C
             @Test
             public void should_bind_type_to_a_class_with_transitive_dependencies() {
                 config.bind(Component.class, ComponentWithInjectConstructor.class);
@@ -97,7 +92,6 @@ public class ContainerTest {
             }
 
 
-            //todo: multi inject constructor
             @Test
             public void should_throw_exception_if_multi_inject_constructors_provided() {
                 assertThrows(IllegalComponentException.class, () -> {
@@ -105,7 +99,6 @@ public class ContainerTest {
                 });
             }
 
-            //todo: no default constructor
             @Test
             public void should_throw_exception_if_no_inject_nor_default_constructor_provided() {
                 assertThrows(IllegalComponentException.class, () -> {
@@ -113,7 +106,6 @@ public class ContainerTest {
                 });
             }
 
-            //todo: dependencies not exist
             @Test
             public void should_throw_exception_if_dependency_not_exist() {
                 config.bind(Component.class, ComponentWithInjectConstructor.class);
@@ -133,7 +125,6 @@ public class ContainerTest {
                 assertEquals(Dependency.class, exception.getComponent());
             }
 
-            // todo A -> B -> A
             @Test
             public void should_throw_exception_if_cyclic_dependencies_found() {
                 config.bind(Component.class, ComponentWithInjectConstructor.class);
@@ -147,7 +138,6 @@ public class ContainerTest {
             }
 
 
-            // todo A -> B -> C -> A
             @Test
             public void should_throw_exception_if_transitive_cyclic_dependencies_found() {
                 config.bind(Component.class, ComponentWithInjectConstructor.class);
@@ -173,7 +163,6 @@ public class ContainerTest {
             static class SubclassWithFieldInjection extends ComponentWithFieldInjection {
             }
 
-            //todo inject field
             @Test
             void should_inject_dependency_via_field() {
                 Dependency instance = new Dependency() {
@@ -206,7 +195,6 @@ public class ContainerTest {
                 assertSame(dependency, component.dependency);
             }
 
-            //todo throw exception if dependencies not found
 
             // 依赖丢失,循环依赖的检测 均为外部系统完成,所以只用进行组件功能测试即可
             @Test
@@ -216,7 +204,6 @@ public class ContainerTest {
             }
 
             //todo throw exception if field is final
-            //todo throw exception if cyclic dependency
         }
 
         @Nested
