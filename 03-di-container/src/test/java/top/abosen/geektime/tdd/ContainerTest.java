@@ -39,8 +39,21 @@ public class ContainerTest {
             assertSame(instance, config.getContext().get(Component.class));
         }
 
-        //todo: abstract class
-        //todo: interface
+        abstract class AbstractComponent implements Component {
+            @Inject
+            public AbstractComponent() {
+            }
+        }
+
+        @Test
+        void should_throw_exception_if_component_is_abstract() {
+            assertThrows(IllegalComponentException.class, () -> new ConstructorInjectionProvider<>(AbstractComponent.class));
+        }
+
+        @Test
+        void should_throw_exception_if_component_is_interface() {
+            assertThrows(IllegalComponentException.class, () -> new ConstructorInjectionProvider<>(Component.class));
+        }
 
         @Test
         public void should_throw_exception_if_component_not_defined() {
@@ -204,7 +217,15 @@ public class ContainerTest {
                 assertArrayEquals(new Class<?>[]{Dependency.class}, provider.getDependencies().toArray());
             }
 
-            //todo throw exception if field is final
+            static class FinalInjectField {
+                @Inject
+                final Dependency dependency = null;
+            }
+
+            @Test
+            void should_throw_exception_if_inject_field_is_final() {
+                assertThrows(IllegalComponentException.class, () -> new ConstructorInjectionProvider<>(FinalInjectField.class));
+            }
         }
 
         @Nested
@@ -245,7 +266,6 @@ public class ContainerTest {
                 assertSame(dependency, component.dependency);
             }
 
-            // todo override inject from superclass
             static class SuperClassWithInjectMethod {
                 int supperCalled = 0;
 
@@ -272,11 +292,11 @@ public class ContainerTest {
                 assertEquals(1, component.supperCalled);
                 assertEquals(2, component.subCalled);
             }
-            // todo include dependencies from inject method
-            // todo throw exception if type parameter defined
+
             static class SubclassOverrideSuperClassWithInjectMethod extends SuperClassWithInjectMethod {
 
-                @Inject @Override
+                @Inject
+                @Override
                 void install() {
                     super.install();
                 }
@@ -289,7 +309,7 @@ public class ContainerTest {
                 assertEquals(1, component.supperCalled);
             }
 
-            static class SubclassOverrideSuperClassWithNoInject extends SuperClassWithInjectMethod{
+            static class SubclassOverrideSuperClassWithNoInject extends SuperClassWithInjectMethod {
                 @Override
                 void install() {
                     super.install();
@@ -297,15 +317,27 @@ public class ContainerTest {
             }
 
             @Test
-            void should_not_call_inject_method_if_override_with_no_inject(){
+            void should_not_call_inject_method_if_override_with_no_inject() {
                 config.bind(SubclassOverrideSuperClassWithNoInject.class, SubclassOverrideSuperClassWithNoInject.class);
                 SubclassOverrideSuperClassWithNoInject component = config.getContext().get(SubclassOverrideSuperClassWithNoInject.class);
                 assertEquals(0, component.supperCalled);
             }
+
             @Test
             void should_include_dependencies_from_inject_method() {
                 ConstructorInjectionProvider<InjectMethodWithDependency> provider = new ConstructorInjectionProvider<>(InjectMethodWithDependency.class);
                 assertArrayEquals(new Class<?>[]{Dependency.class}, provider.getDependencies().toArray());
+            }
+
+            static class InjectMethodWithTypeParameter {
+                @Inject
+                <T> void install() {
+                }
+            }
+
+            @Test
+            void should_throw_exception_if_inject_method_has_type_parameter() {
+                assertThrows(IllegalComponentException.class, () -> new ConstructorInjectionProvider<>(InjectMethodWithTypeParameter.class));
             }
         }
     }

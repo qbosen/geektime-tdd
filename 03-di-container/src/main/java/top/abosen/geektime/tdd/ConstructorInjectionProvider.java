@@ -21,9 +21,19 @@ final class ConstructorInjectionProvider<Type> implements ContextConfig.Componen
     private final List<Method> injectMethods;
 
     public ConstructorInjectionProvider(Class<Type> component) {
+        if (Modifier.isAbstract(component.getModifiers())) {
+            throw new IllegalComponentException();
+        }
         this.injectConstructor = getInjectConstructor(component);
         this.injectFields = getInjectFields(component);
         this.injectMethods = getInjectMethods(component);
+
+        if (injectFields.stream().anyMatch(it -> Modifier.isFinal(it.getModifiers()))) {
+            throw new IllegalComponentException();
+        }
+        if (injectMethods.stream().anyMatch(m -> m.getTypeParameters().length != 0)) {
+            throw new IllegalComponentException();
+        }
     }
 
     @Override
