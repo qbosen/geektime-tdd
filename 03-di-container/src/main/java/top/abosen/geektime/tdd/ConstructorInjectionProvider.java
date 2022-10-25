@@ -53,6 +53,7 @@ final class ConstructorInjectionProvider<Type> implements ContextConfig.Componen
                     .map(parameter -> context.get(parameter.getType())).toArray();
             Type instance = injectConstructor.newInstance(dependencies);
             for (Field field : injectFields) {
+                field.setAccessible(true);
                 field.set(instance, context.get(field.getType()));
             }
             for (Method method : injectMethods) {

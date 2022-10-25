@@ -73,6 +73,28 @@ public class InjectionTest {
                 }
             }
 
+            class ComponentWithMultiInjectConstructors implements Component {
+                private String name;
+                private Double value;
+
+                @Inject
+                public ComponentWithMultiInjectConstructors(String name) {
+                    this.name = name;
+                }
+
+                @Inject
+                public ComponentWithMultiInjectConstructors(String name, Double value) {
+                    this.name = name;
+                    this.value = value;
+                }
+            }
+
+            class ComponentWithNoInjectNorDefaultConstructors implements Component {
+                public ComponentWithNoInjectNorDefaultConstructors(String name) {
+                }
+            }
+
+
             @Test
             void should_throw_exception_if_component_is_abstract() {
                 assertThrows(IllegalComponentException.class, () -> new ConstructorInjectionProvider<>(AbstractComponent.class));
