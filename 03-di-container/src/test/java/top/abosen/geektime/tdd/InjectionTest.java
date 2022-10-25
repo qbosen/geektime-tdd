@@ -267,6 +267,17 @@ public class InjectionTest {
                 assertEquals(0, component.supperCalled);
             }
 
+            static class SubclassExtendsNoInjectOverrideSubclass extends SubclassOverrideSuperClassWithNoInject {
+            }
+
+            @Test
+            void should_not_call_inject_method_if_extends_no_inject_override_method() {
+                InjectionProvider<SubclassExtendsNoInjectOverrideSubclass> provider = new InjectionProvider<>(SubclassExtendsNoInjectOverrideSubclass.class);
+                SubclassExtendsNoInjectOverrideSubclass component = provider.get(context);
+
+                assertEquals(0, component.supperCalled);
+            }
+
             @Test
             void should_include_dependencies_from_inject_method() {
                 InjectionProvider<InjectMethodWithDependency> provider = new InjectionProvider<>(InjectMethodWithDependency.class);

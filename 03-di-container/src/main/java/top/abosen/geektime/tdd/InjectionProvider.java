@@ -3,10 +3,7 @@ package top.abosen.geektime.tdd;
 import jakarta.inject.Inject;
 
 import java.lang.reflect.*;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
@@ -87,24 +84,34 @@ final class InjectionProvider<T> implements ContextConfig.ComponentProvider<T> {
     }
 
 
-    private static <T> List<Method> getInjectMethods(Class<T> component) {
+    private static <T> List<Method> getInjectMethods_(Class<T> component) {
         List<Method> injectMethods = traverse(component, (methods, current) -> injectable(current.getDeclaredMethods())
                 .filter(m -> notOverrideByInjectMethod(methods, m))
                 .filter(m -> notOverrideByNoInjectMethod(component, m))
                 .toList());
+        // 父类的inject方法先执行, 但查找是从子类开始的,所以翻转一次
+        Collections.reverse(injectMethods);
+        return injectMethods;
+    }
+
+    private static <T> List<Method> getInjectMethods(Class<T> component) {
+        List<Method> injectMethods = traverse(component, (methods, current) -> injectable(current.getDeclaredMethods())
+                .filter(m -> isLeafMethod(component, m))
+                .toList());
+        // 父类的inject方法先执行, 但查找是从子类开始的,所以翻转一次
         Collections.reverse(injectMethods);
         return injectMethods;
     }
 
 
     private static <T> List<T> traverse(Class<?> component, BiFunction<List<T>, Class<?>, List<T>> finder) {
-        List<T> injects = new ArrayList<>();
+        List<T> visited = new ArrayList<>();
         Class<?> current = component;
         while (current != Object.class) {
-            injects.addAll(finder.apply(injects, current));
+            visited.addAll(finder.apply(visited, current));
             current = current.getSuperclass();
         }
-        return injects;
+        return visited;
     }
 
     private static Object toDependency(Context context, Field field) {
@@ -115,15 +122,30 @@ final class InjectionProvider<T> implements ContextConfig.ComponentProvider<T> {
         return stream(executable.getParameterTypes()).map(context::get).toArray();
     }
 
-    private static <T> boolean notOverrideByNoInjectMethod(Class<T> component, Method m) {
+    private static boolean notOverrideByNoInjectMethod(Class<?> component, Method m) {
         return stream(component.getDeclaredMethods()).filter(m1 -> !m1.isAnnotationPresent(Inject.class))
                 .noneMatch(o -> isOverride(m, o));
+    }
+
+    private static boolean isLeafMethod(Class<?> component, Method method) {
+        Class<?> current = component;
+        while (current != Object.class) {
+            Optional<Method> lowest = stream(current.getDeclaredMethods()).filter(m -> isOverride(m, method)).findFirst();
+            if (lowest.isPresent()) {
+                return lowest.get().equals(method);
+            }
+            current = current.getSuperclass();
+        }
+        return false;
     }
 
     private static boolean notOverrideByInjectMethod(List<Method> injectMethods, Method m) {
         return injectMethods.stream().noneMatch(o -> isOverride(m, o));
     }
 
+    /**
+     * 先不考虑private等问题
+     */
     private static boolean isOverride(Method m, Method o) {
         return o.getName().equals(m.getName()) && Arrays.equals(o.getParameterTypes(), m.getParameterTypes());
     }
