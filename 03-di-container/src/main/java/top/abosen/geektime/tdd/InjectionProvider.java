@@ -1,7 +1,6 @@
 package top.abosen.geektime.tdd;
 
 import jakarta.inject.Inject;
-import jakarta.inject.Provider;
 
 import java.lang.reflect.*;
 import java.util.*;
@@ -59,6 +58,15 @@ final class InjectionProvider<T> implements ContextConfig.ComponentProvider<T> {
                 stream(injectConstructor.getParameters()).map(Parameter::getType),
                 concat(injectFields.stream().map(Field::getType),
                         injectMethods.stream().flatMap(it -> stream(it.getParameterTypes()))
+                )).toList();
+    }
+
+    @Override
+    public List<Type> getDependencyTypes() {
+        return concat(stream(injectConstructor.getParameters()).map(Parameter::getParameterizedType),
+                concat(
+                        injectFields.stream().map(Field::getGenericType),
+                        injectMethods.stream().flatMap(it -> stream(it.getParameters()).map(Parameter::getParameterizedType))
                 )).toList();
     }
 

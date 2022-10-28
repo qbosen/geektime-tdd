@@ -3,6 +3,7 @@ package top.abosen.geektime.tdd;
 import jakarta.inject.Provider;
 
 import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.*;
 
 /**
@@ -15,6 +16,10 @@ public class ContextConfig {
         T get(Context context);
 
         default List<Class<?>> getDependencies() {
+            return List.of();
+        }
+
+        default List<Type> getDependencyTypes() {
             return List.of();
         }
     }
@@ -58,19 +63,32 @@ public class ContextConfig {
     }
 
     private void checkDependencies(Class<?> component, Deque<Class<?>> visiting) {
-        for (Class<?> dependency : providers.get(component).getDependencies()) {
-            if (!providers.containsKey(dependency)) {
-                throw new DependencyNotFountException(dependency, component);
+        for (Type dependency : providers.get(component).getDependencyTypes()) {
+            if (dependency instanceof Class<?>) {
+                checkDependency(component, visiting, (Class<?>) dependency);
             }
-            if (visiting.contains(dependency)) {
-                List<Class<?>> cyclicPath = new ArrayList<>(visiting);
-                cyclicPath.add(dependency);
-                throw new CyclicDependenciesFoundException(cyclicPath);
+            if (dependency instanceof ParameterizedType) {
+                Class<?> type = (Class<?>) ((ParameterizedType) dependency).getActualTypeArguments()[0];
+                // todo transitive
+                if (!providers.containsKey(type)) {
+                    throw new DependencyNotFountException(type, component);
+                }
             }
-            visiting.addLast(dependency);
-            checkDependencies(dependency, visiting);
-            visiting.removeLast();
         }
+    }
+
+    private void checkDependency(Class<?> component, Deque<Class<?>> visiting, Class<?> dependency) {
+        if (!providers.containsKey(dependency)) {
+            throw new DependencyNotFountException(dependency, component);
+        }
+        if (visiting.contains(dependency)) {
+            List<Class<?>> cyclicPath = new ArrayList<>(visiting);
+            cyclicPath.add(dependency);
+            throw new CyclicDependenciesFoundException(cyclicPath);
+        }
+        visiting.addLast(dependency);
+        checkDependencies(dependency, visiting);
+        visiting.removeLast();
     }
 
 }
