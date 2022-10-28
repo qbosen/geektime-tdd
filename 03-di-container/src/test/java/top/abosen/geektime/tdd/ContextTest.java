@@ -168,7 +168,7 @@ class ContextTest {
                     Arguments.of(Named.of("Inject Method", DependencyCheck.MissingDependencyMethod.class)),
                     Arguments.of(Named.of("Provider in Inject Constructor", DependencyCheck.MissingDependencyProviderConstructor.class)),
                     Arguments.of(Named.of("Provider in Inject Field", DependencyCheck.MissingDependencyProviderField.class)),
-                    Arguments.of(Named.of("Provider in Inject Method", DependencyCheck.MissingDependencyMethod.class))
+                    Arguments.of(Named.of("Provider in Inject Method", DependencyCheck.MissingDependencyProviderMethod.class))
             );
         }
 

@@ -53,16 +53,7 @@ final class InjectionProvider<T> implements ContextConfig.ComponentProvider<T> {
     }
 
     @Override
-    public List<Class<?>> getDependencies() {
-        return concat(
-                stream(injectConstructor.getParameters()).map(Parameter::getType),
-                concat(injectFields.stream().map(Field::getType),
-                        injectMethods.stream().flatMap(it -> stream(it.getParameterTypes()))
-                )).toList();
-    }
-
-    @Override
-    public List<Type> getDependencyTypes() {
+    public List<Type> getDependencies() {
         return concat(stream(injectConstructor.getParameters()).map(Parameter::getParameterizedType),
                 concat(
                         injectFields.stream().map(Field::getGenericType),
@@ -124,21 +115,18 @@ final class InjectionProvider<T> implements ContextConfig.ComponentProvider<T> {
     }
 
     private static Object toDependency(Context context, Field field) {
-        Type type = field.getGenericType();
+        return toDependency(context, field.getGenericType());
+    }
+
+    private static Object[] toDependencies(Context context, Executable executable) {
+        return stream(executable.getParameters()).map(p -> toDependency(context, p.getParameterizedType())).toArray();
+    }
+
+    private static Object toDependency(Context context, Type type) {
         if (type instanceof ParameterizedType) {
             return context.get(((ParameterizedType) type));
         }
         return context.get((Class<?>) type);
-    }
-
-    private static Object[] toDependencies(Context context, Executable executable) {
-        return stream(executable.getParameters()).map(p -> {
-            Type type = p.getParameterizedType();
-            if (type instanceof ParameterizedType) {
-                return context.get(((ParameterizedType) type));
-            }
-            return context.get((Class<?>) type);
-        }).toArray();
     }
 
     private static boolean notOverrideByNoInjectMethod(Class<?> component, Method m) {

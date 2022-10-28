@@ -15,22 +15,18 @@ public class ContextConfig {
     interface ComponentProvider<T> {
         T get(Context context);
 
-        default List<Class<?>> getDependencies() {
-            return List.of();
-        }
-
-        default List<Type> getDependencyTypes() {
+        default List<Type> getDependencies() {
             return List.of();
         }
     }
 
     private Map<Class<?>, ComponentProvider<?>> providers = new HashMap<>();
 
-    public <Type> void bind(Class<Type> type, Type instance) {
-        providers.put(type, (ComponentProvider<Type>) context -> instance);
+    public <T> void bind(Class<T> type, T instance) {
+        providers.put(type, (ComponentProvider<T>) context -> instance);
     }
 
-    public <Type, Implementation extends Type> void bind(Class<Type> type, Class<Implementation> implementation) {
+    public <T, R extends T> void bind(Class<T> type, Class<R> implementation) {
         providers.put(type, new InjectionProvider<>(implementation));
     }
 
@@ -38,32 +34,32 @@ public class ContextConfig {
         providers.keySet().forEach(component -> checkDependencies(component, new ArrayDeque<>()));
         return new Context() {
             @Override
-            public <Type> Type get(Class<Type> type) {
+            public <T> T get(Class<T> type) {
                 return getOpt(type).orElseThrow(() -> new DependencyNotFountException(type, type));
             }
 
             @Override
-            public <Type> Optional<Type> getOpt(Class<Type> type) {
-                return Optional.ofNullable(providers.get(type)).map(it -> (Type) it.get(this));
+            public <T> Optional<T> getOpt(Class<T> type) {
+                return Optional.ofNullable(providers.get(type)).map(it -> (T) it.get(this));
             }
 
             @Override
-            public <Type> Provider<Type> get(ParameterizedType type) {
+            public <T> Provider<T> get(ParameterizedType type) {
                 Class<?> componentType = (Class<?>) type.getActualTypeArguments()[0];
-                return (Provider<Type>) getOpt(type).orElseThrow(() -> new DependencyNotFountException(componentType, componentType));
+                return (Provider<T>) getOpt(type).orElseThrow(() -> new DependencyNotFountException(componentType, componentType));
             }
 
             @Override
-            public <Type> Optional<Provider<Type>> getOpt(ParameterizedType type) {
+            public <T> Optional<Provider<T>> getOpt(ParameterizedType type) {
                 if (type.getRawType() != Provider.class) return Optional.empty();
                 Class<?> componentType = (Class<?>) type.getActualTypeArguments()[0];
-                return Optional.ofNullable(providers.get(componentType)).map(it -> (Provider<Type>) () -> (Type) it.get(this));
+                return Optional.ofNullable(providers.get(componentType)).map(it -> (Provider<T>) () -> (T) it.get(this));
             }
         };
     }
 
     private void checkDependencies(Class<?> component, Deque<Class<?>> visiting) {
-        for (Type dependency : providers.get(component).getDependencyTypes()) {
+        for (Type dependency : providers.get(component).getDependencies()) {
             if (dependency instanceof Class<?>) {
                 checkDependency(component, visiting, (Class<?>) dependency);
             }
