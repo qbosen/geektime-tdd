@@ -123,10 +123,7 @@ final class InjectionProvider<T> implements ContextConfig.ComponentProvider<T> {
     }
 
     private static Object toDependency(Context context, Type type) {
-        if (type instanceof ParameterizedType) {
-            return context.get(((ParameterizedType) type));
-        }
-        return context.get((Class<?>) type);
+        return context.get(type);
     }
 
     private static boolean notOverrideByNoInjectMethod(Class<?> component, Method m) {

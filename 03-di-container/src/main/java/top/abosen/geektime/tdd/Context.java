@@ -1,8 +1,6 @@
 package top.abosen.geektime.tdd;
 
-import jakarta.inject.Provider;
-
-import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.Optional;
 
 /**
@@ -10,11 +8,7 @@ import java.util.Optional;
  * @date 2022/10/19
  */
 public interface Context {
-    <Type> Type get(Class<Type> type);
+    <T> T get(Type type);
 
-    <Type> Optional<Type> getOpt(Class<Type> type);
-
-    <Type> Provider<Type> get(ParameterizedType type);
-
-    <Type> Optional<Provider<Type>> getOpt(ParameterizedType type);
+    <T> Optional<T> getOpt(Type type);
 }

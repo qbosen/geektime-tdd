@@ -50,7 +50,7 @@ class ContextTest {
             config.bind(Dependency.class, dependency);
             config.bind(Component.class, componentType);
 
-            assertSame(dependency, config.getContext().get(Component.class).dependency());
+            assertSame(dependency, ((Component) config.getContext().get(Component.class)).dependency());
         }
 
         static Stream<Arguments> should_bind_type_to_an_injectable_component() {
