@@ -1,6 +1,7 @@
 package top.abosen.geektime.tdd;
 
 import jakarta.inject.Inject;
+import jakarta.inject.Provider;
 
 import java.lang.reflect.*;
 import java.util.*;
@@ -115,11 +116,21 @@ final class InjectionProvider<T> implements ContextConfig.ComponentProvider<T> {
     }
 
     private static Object toDependency(Context context, Field field) {
-        return context.get(field.getType());
+        Type type = field.getGenericType();
+        if (type instanceof ParameterizedType) {
+            return context.get(((ParameterizedType) type));
+        }
+        return context.get((Class<?>) type);
     }
 
     private static Object[] toDependencies(Context context, Executable executable) {
-        return stream(executable.getParameterTypes()).map(context::get).toArray();
+        return stream(executable.getParameters()).map(p -> {
+            Type type = p.getParameterizedType();
+            if (type instanceof ParameterizedType) {
+                return context.get(((ParameterizedType) type));
+            }
+            return context.get((Class<?>) type);
+        }).toArray();
     }
 
     private static boolean notOverrideByNoInjectMethod(Class<?> component, Method m) {
