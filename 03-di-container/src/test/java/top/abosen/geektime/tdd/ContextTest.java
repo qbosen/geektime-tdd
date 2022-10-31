@@ -11,7 +11,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.internal.util.collections.Sets;
 
-import java.lang.reflect.ParameterizedType;
+import java.lang.annotation.Annotation;
 import java.util.*;
 import java.util.stream.Stream;
 
@@ -131,13 +131,72 @@ class ContextTest {
             config.bind(Component.class, instance);
 
             Context context = config.getContext();
-            assertFalse(context.getOpt(new Context.Ref<List<Component>>() {}).isPresent());
+            assertFalse(context.getOpt(new Context.Ref<List<Component>>() {
+            }).isPresent());
         }
 
         @Nested
-        class WithQualifier{
+        class WithQualifier {
             //TODO binding component with qualifier
+            @Test
+            void should_bind_instance_with_qualifier() {
+                Component instance = new Component() {
+                };
+                config.bind(Component.class, instance, new NamedLiteral("ChosenOne"));
+
+                Context context = config.getContext();
+                Component chosenOne = context.get(Context.Ref.of(Component.class, new NamedLiteral("ChosenOne")));
+                assertSame(instance, chosenOne);
+            }
+
+            @Test
+            void should_bind_component_with_qualifier() {
+                Dependency dependency = new Dependency() {
+                };
+                config.bind(Dependency.class, dependency);
+                config.bind(InjectConstructor.class, InjectConstructor.class, new NamedLiteral("ChosenOne"));
+
+                Context context = config.getContext();
+                InjectConstructor chosenOne = context.get(Context.Ref.of(InjectConstructor.class, new NamedLiteral("ChosenOne")));
+                assertSame(dependency, chosenOne.dependency);
+            }
+
+            static class InjectConstructor {
+                private Dependency dependency;
+
+                @Inject
+                public InjectConstructor(Dependency dependency) {
+                    this.dependency = dependency;
+                }
+            }
+
             //TODO binding component with multi qualifier
+            @Test
+            void should_bind_instance_with_multi_qualifier() {
+                Component instance = new Component() {
+                };
+                config.bind(Component.class, instance, new NamedLiteral("ChosenOne"), new NamedLiteral("Skywalker"));
+
+                Context context = config.getContext();
+                Component chosenOne = context.get(Context.Ref.of(Component.class, new NamedLiteral("ChosenOne")));
+                Component skywalker = context.get(Context.Ref.of(Component.class, new NamedLiteral("Skywalker")));
+                assertSame(instance, chosenOne);
+                assertSame(instance, skywalker);
+            }
+
+            @Test
+            void should_bind_component_with_multi_qualifier() {
+                Dependency dependency = new Dependency() {
+                };
+                config.bind(Dependency.class, dependency);
+                config.bind(InjectConstructor.class, InjectConstructor.class, new NamedLiteral("ChosenOne"),new NamedLiteral("Skywalker"));
+
+                Context context = config.getContext();
+                InjectConstructor chosenOne = context.get(Context.Ref.of(InjectConstructor.class, new NamedLiteral("ChosenOne")));
+                InjectConstructor skywalker = context.get(Context.Ref.of(InjectConstructor.class, new NamedLiteral("Skywalker")));
+                assertSame(dependency, chosenOne.dependency);
+                assertSame(dependency, skywalker.dependency);
+            }
             //TODO throw illegal component if illegal qualifier
         }
     }
@@ -347,9 +406,16 @@ class ContextTest {
         }
 
         @Nested
-        class WithQualifier{
+        class WithQualifier {
             //TODO dependency missing if qualifier not match
             //TODO check cyclic dependencies with qualifier
         }
+    }
+}
+
+record NamedLiteral(String value) implements jakarta.inject.Named {
+    @Override
+    public Class<? extends Annotation> annotationType() {
+        return jakarta.inject.Named.class;
     }
 }

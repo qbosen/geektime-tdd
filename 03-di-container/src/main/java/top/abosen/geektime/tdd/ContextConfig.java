@@ -2,6 +2,7 @@ package top.abosen.geektime.tdd;
 
 import jakarta.inject.Provider;
 
+import java.lang.annotation.Annotation;
 import java.util.*;
 
 /**
@@ -19,6 +20,7 @@ public class ContextConfig {
     }
 
     private Map<Class<?>, ComponentProvider<?>> providers = new HashMap<>();
+    private Map<Component, ComponentProvider<?>> components = new HashMap<>();
 
     public <T> void bind(Class<T> type, T instance) {
         providers.put(type, (ComponentProvider<T>) context -> instance);
@@ -28,11 +30,31 @@ public class ContextConfig {
         providers.put(type, new InjectionProvider<>(implementation));
     }
 
+    public <T> void bind(Class<T> type, T instance, Annotation... qualifiers) {
+        for (Annotation qualifier : qualifiers) {
+            components.put(new Component(type, qualifier), (ComponentProvider<T>) context -> instance);
+        }
+    }
+
+    public <T, R extends T> void bind(Class<T> type, Class<R> implementation, Annotation... qualifiers) {
+        for (Annotation qualifier : qualifiers) {
+            components.put(new Component(type, qualifier), new InjectionProvider<>(implementation));
+        }
+    }
+
+    record Component(Class<?> type, Annotation qualifier) {
+    }
+
+
     public Context getContext() {
         providers.keySet().forEach(component -> checkDependencies(component, new ArrayDeque<>()));
         return new Context() {
             @Override
             public <T> Optional<T> getOpt(Ref<T> ref) {
+                if (ref.getQualifier() != null) {
+                    return (Optional<T>) Optional.ofNullable(components.get(new Component(ref.getComponent(), ref.getQualifier())))
+                            .map(it -> (Object) it.get(this));
+                }
                 if (ref.isContainer()) {
                     if (ref.getContainer() != Provider.class) return Optional.empty();
                     return Optional.ofNullable(providers.get(ref.getComponent())).map(it -> (T) (Provider<Object>) () -> it.get(this));
