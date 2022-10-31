@@ -134,6 +134,12 @@ class ContextTest {
             assertFalse(context.getOpt(new Context.Ref<List<Component>>() {}).isPresent());
         }
 
+        @Nested
+        class WithQualifier{
+            //TODO binding component with qualifier
+            //TODO binding component with multi qualifier
+            //TODO throw illegal component if illegal qualifier
+        }
     }
 
     @Nested
@@ -338,6 +344,12 @@ class ContextTest {
 
             Context context = config.getContext();
             assertTrue(context.getOpt(Context.Ref.of(Component.class)).isPresent());
+        }
+
+        @Nested
+        class WithQualifier{
+            //TODO dependency missing if qualifier not match
+            //TODO check cyclic dependencies with qualifier
         }
     }
 }
