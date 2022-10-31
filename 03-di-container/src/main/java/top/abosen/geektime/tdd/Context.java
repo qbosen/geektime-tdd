@@ -10,33 +10,47 @@ import java.util.Optional;
  * @date 2022/10/19
  */
 public interface Context {
-    <T> T get(Ref ref);
+    <T> T get(Ref<T> ref);
 
-    <T> Optional<T> getOpt(Ref ref);
+    <T> Optional<T> getOpt(Ref<T> ref);
 
     /**
      * @author qiubaisen
      * @date 2022/10/31
      */
-    class Ref {
+    class Ref<T> {
         private Type container;
-        private Class<?> component;
+        private Class<T> component;
 
-        public static Ref of(Type type) {
+        public static <T> Ref<T> of(Class<T> component) {
+            return new Ref<>(component);
+        }
+
+        public static <T> Ref<T> of(Type type) {
+            return new Ref<>(type);
+        }
+
+        Ref(Type container) {
+            init(container);
+        }
+
+        Ref(Class<T> component) {
+            init(component);
+        }
+
+        protected Ref() {
+            init(((ParameterizedType) this.getClass().getGenericSuperclass()).getActualTypeArguments()[0]);
+        }
+
+        private void init(Type type) {
             if (type instanceof ParameterizedType container) {
-                return new Ref(container);
+                this.container = container.getRawType();
+                this.component = (Class<T>) container.getActualTypeArguments()[0];
+            } else {
+                this.component = (Class<T>) type;
             }
-            return new Ref((Class<?>) type);
         }
 
-        Ref(ParameterizedType container) {
-            this.container = container.getRawType();
-            this.component = (Class<?>) container.getActualTypeArguments()[0];
-        }
-
-        Ref(Class<?> component) {
-            this.component = component;
-        }
 
         public Type getContainer() {
             return container;
@@ -54,7 +68,7 @@ public interface Context {
         public boolean equals(Object o) {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
-            Ref ref = (Ref) o;
+            Ref<T> ref = (Ref<T>) o;
             return Objects.equals(container, ref.container) && component.equals(ref.component);
         }
 

@@ -13,7 +13,7 @@ public class ContextConfig {
     interface ComponentProvider<T> {
         T get(Context context);
 
-        default List<Context.Ref> getDependencies() {
+        default List<Context.Ref<Object>> getDependencies() {
             return List.of();
         }
     }
@@ -32,7 +32,7 @@ public class ContextConfig {
         providers.keySet().forEach(component -> checkDependencies(component, new ArrayDeque<>()));
         return new Context() {
             @Override
-            public <T> Optional<T> getOpt(Ref ref) {
+            public <T> Optional<T> getOpt(Ref<T> ref) {
                 if (ref.isContainer()) {
                     if (ref.getContainer() != Provider.class) return Optional.empty();
                     return Optional.ofNullable(providers.get(ref.getComponent())).map(it -> (T) (Provider<Object>) () -> it.get(this));
@@ -41,14 +41,14 @@ public class ContextConfig {
             }
 
             @Override
-            public <T> T get(Ref ref) {
+            public <T> T get(Ref<T> ref) {
                 return (T) getOpt(ref).orElseThrow(() -> new DependencyNotFountException(ref.getComponent(), ref.getComponent()));
             }
         };
     }
 
     private void checkDependencies(Class<?> component, Deque<Class<?>> visiting) {
-        for (Context.Ref dependency : providers.get(component).getDependencies()) {
+        for (Context.Ref<Object> dependency : providers.get(component).getDependencies()) {
             if (!providers.containsKey(dependency.getComponent())) {
                 throw new DependencyNotFountException(dependency.getComponent(), component);
             }

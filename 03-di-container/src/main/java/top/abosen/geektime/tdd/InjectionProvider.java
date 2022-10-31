@@ -53,7 +53,7 @@ final class InjectionProvider<T> implements ContextConfig.ComponentProvider<T> {
     }
 
     @Override
-    public List<Context.Ref> getDependencies() {
+    public List<Context.Ref<Object>> getDependencies() {
         return concat(stream(injectConstructor.getParameters()).map(Parameter::getParameterizedType),
                 concat(
                         injectFields.stream().map(Field::getGenericType),
