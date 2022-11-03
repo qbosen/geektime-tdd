@@ -53,12 +53,12 @@ final class InjectionProvider<T> implements ContextConfig.ComponentProvider<T> {
     }
 
     @Override
-    public List<Context.Ref<Object>> getDependencies() {
+    public List<ComponentRef<Object>> getDependencies() {
         return concat(stream(injectConstructor.getParameters()).map(Parameter::getParameterizedType),
                 concat(
                         injectFields.stream().map(Field::getGenericType),
                         injectMethods.stream().flatMap(it -> stream(it.getParameters()).map(Parameter::getParameterizedType))
-                )).map(Context.Ref::of).toList();
+                )).map(ComponentRef::of).toList();
     }
 
     private static <T> Constructor<T> getInjectConstructor(Class<T> implementation) {
@@ -123,7 +123,7 @@ final class InjectionProvider<T> implements ContextConfig.ComponentProvider<T> {
     }
 
     private static Object toDependency(Context context, Type type) {
-        return context.get(Context.Ref.of(type));
+        return context.get(ComponentRef.of(type));
     }
 
     private static boolean notOverrideByNoInjectMethod(Class<?> component, Method m) {

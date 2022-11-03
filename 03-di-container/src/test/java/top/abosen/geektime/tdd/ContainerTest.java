@@ -1,22 +1,7 @@
 package top.abosen.geektime.tdd;
 
-import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
-import org.mockito.internal.util.collections.Sets;
-
-import java.util.Arrays;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Stream;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * @author qiubaisen
@@ -45,7 +30,7 @@ public class ContainerTest {
     }
 }
 
-interface Component {
+interface TestComponent {
     default Dependency dependency() {
         return null;
     }
