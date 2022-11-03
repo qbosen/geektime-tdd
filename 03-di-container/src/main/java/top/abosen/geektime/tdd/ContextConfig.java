@@ -19,15 +19,14 @@ public class ContextConfig {
         }
     }
 
-    private Map<Class<?>, ComponentProvider<?>> providers = new HashMap<>();
     private Map<Component, ComponentProvider<?>> components = new HashMap<>();
 
     public <T> void bind(Class<T> type, T instance) {
-        providers.put(type, (ComponentProvider<T>) context -> instance);
+        components.put(new Component(type, null), (ComponentProvider<T>) context -> instance);
     }
 
     public <T, R extends T> void bind(Class<T> type, Class<R> implementation) {
-        providers.put(type, new InjectionProvider<>(implementation));
+        components.put(new Component(type, null), new InjectionProvider<>(implementation));
     }
 
     public <T> void bind(Class<T> type, T instance, Annotation... qualifiers) {
@@ -47,7 +46,8 @@ public class ContextConfig {
 
 
     public Context getContext() {
-        providers.keySet().forEach(component -> checkDependencies(component, new ArrayDeque<>()));
+        components.keySet().forEach(component -> checkDependencies(component, new ArrayDeque<>()));
+
         return new Context() {
             @Override
             public <T> Optional<T> getOpt(Ref<T> ref) {
@@ -57,9 +57,9 @@ public class ContextConfig {
                 }
                 if (ref.isContainer()) {
                     if (ref.getContainer() != Provider.class) return Optional.empty();
-                    return Optional.ofNullable(providers.get(ref.getComponent())).map(it -> (T) (Provider<Object>) () -> it.get(this));
+                    return Optional.ofNullable(getProvider(ref)).map(it -> (T) (Provider<Object>) () -> it.get(this));
                 }
-                return (Optional<T>) Optional.ofNullable(providers.get(ref.getComponent())).map(it -> (Object) it.get(this));
+                return (Optional<T>) Optional.ofNullable(getProvider(ref)).map(it -> (Object) it.get(this));
             }
 
             @Override
@@ -69,10 +69,14 @@ public class ContextConfig {
         };
     }
 
-    private void checkDependencies(Class<?> component, Deque<Class<?>> visiting) {
-        for (Context.Ref<Object> dependency : providers.get(component).getDependencies()) {
-            if (!providers.containsKey(dependency.getComponent())) {
-                throw new DependencyNotFountException(dependency.getComponent(), component);
+    private <T> ComponentProvider<?> getProvider(Context.Ref<T> ref) {
+        return components.get(new Component(ref.getComponent(), ref.getQualifier()));
+    }
+
+    private void checkDependencies(Component  component, Deque<Class<?>> visiting) {
+        for (Context.Ref<Object> dependency : components.get(component).getDependencies()) {
+            if (!components.containsKey(new Component(dependency.getComponent(), dependency.getQualifier()))) {
+                throw new DependencyNotFountException(dependency.getComponent(), component.type());
             }
             if (!dependency.isContainer()) {
                 if (visiting.contains(dependency.getComponent())) {
@@ -81,7 +85,8 @@ public class ContextConfig {
                     throw new CyclicDependenciesFoundException(cyclicPath);
                 }
                 visiting.addLast(dependency.getComponent());
-                checkDependencies(dependency.getComponent(), visiting);
+
+                checkDependencies(new Component(dependency.getComponent(), dependency.getQualifier()), visiting);
                 visiting.removeLast();
             } else {
                 // todo transitive
