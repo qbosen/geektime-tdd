@@ -1,7 +1,9 @@
 package top.abosen.geektime.tdd;
 
 import jakarta.inject.Inject;
+import jakarta.inject.Qualifier;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
 import java.util.*;
 import java.util.function.BiFunction;
@@ -54,11 +56,16 @@ final class InjectionProvider<T> implements ContextConfig.ComponentProvider<T> {
 
     @Override
     public List<ComponentRef<Object>> getDependencies() {
-        return concat(stream(injectConstructor.getParameters()).map(Parameter::getParameterizedType),
+        return concat(stream(injectConstructor.getParameters()).map(it-> toComponentRef(it)),
                 concat(
-                        injectFields.stream().map(Field::getGenericType),
-                        injectMethods.stream().flatMap(it -> stream(it.getParameters()).map(Parameter::getParameterizedType))
-                )).map(ComponentRef::of).toList();
+                        injectFields.stream().map(Field::getGenericType).map(ComponentRef::of),
+                        injectMethods.stream().flatMap(it -> stream(it.getParameters()).map(Parameter::getParameterizedType)).map(ComponentRef::of)
+                )).toList();
+    }
+
+    private static ComponentRef<Object> toComponentRef(Parameter parameter) {
+        Annotation qualifier = stream(parameter.getAnnotations()).filter(it -> it.annotationType().isAnnotationPresent(Qualifier.class)).findFirst().orElse(null);
+        return ComponentRef.of(parameter.getParameterizedType(), qualifier);
     }
 
     private static <T> Constructor<T> getInjectConstructor(Class<T> implementation) {

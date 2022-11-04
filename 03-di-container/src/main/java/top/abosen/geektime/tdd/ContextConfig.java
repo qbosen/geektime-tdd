@@ -64,7 +64,7 @@ public class ContextConfig {
 
             @Override
             public <T> T get(ComponentRef<T> ref) {
-                return (T) getOpt(ref).orElseThrow(() -> new DependencyNotFountException(ref.getComponentType(), ref.getComponentType()));
+                return (T) getOpt(ref).orElseThrow(() -> new DependencyNotFountException(ref.component(), ref.component()));
             }
         };
     }
@@ -73,18 +73,18 @@ public class ContextConfig {
         return components.get(ref.component());
     }
 
-    private void checkDependencies(Component component, Deque<Class<?>> visiting) {
+    private void checkDependencies(Component component, Deque<Component> visiting) {
         for (ComponentRef<Object> dependency : components.get(component).getDependencies()) {
             if (!components.containsKey(dependency.component())) {
-                throw new DependencyNotFountException(dependency.getComponentType(), component.type());
+                throw new DependencyNotFountException(dependency.component(), component);
             }
             if (!dependency.isContainer()) {
-                if (visiting.contains(dependency.getComponentType())) {
-                    List<Class<?>> cyclicPath = new ArrayList<>(visiting);
-                    cyclicPath.add(dependency.getComponentType());
+                if (visiting.contains(dependency.component())) {
+                    List<Component> cyclicPath = new ArrayList<>(visiting);
+                    cyclicPath.add(dependency.component());
                     throw new CyclicDependenciesFoundException(cyclicPath);
                 }
-                visiting.addLast(dependency.getComponentType());
+                visiting.addLast(dependency.component());
 
                 checkDependencies(dependency.component(), visiting);
                 visiting.removeLast();

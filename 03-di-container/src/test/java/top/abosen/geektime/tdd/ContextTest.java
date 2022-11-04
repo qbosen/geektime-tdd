@@ -3,10 +3,7 @@ package top.abosen.geektime.tdd;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 import jakarta.inject.Qualifier;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Named;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -189,6 +186,8 @@ class ContextTest {
             void should_throw_exception_if_illegal_qualifier_given_to_component() {
                 assertThrows(IllegalComponentException.class, () -> config.bind(InjectConstructor.class, InjectConstructor.class, new TestLiteral()));
             }
+
+            // TODO Provider
         }
     }
 
@@ -201,8 +200,8 @@ class ContextTest {
             config.bind(TestComponent.class, component);
             DependencyNotFountException exception = assertThrows(DependencyNotFountException.class, () -> config.getContext());
 
-            assertEquals(Dependency.class, exception.getDependency());
-            assertEquals(TestComponent.class, exception.getComponent());
+            assertEquals(Dependency.class, exception.getDependency().type());
+            assertEquals(TestComponent.class, exception.getComponent().type());
         }
 
         static Stream<Arguments> should_throw_exception_if_dependency_not_found() {
@@ -398,8 +397,43 @@ class ContextTest {
 
         @Nested
         class WithQualifier {
-            //TODO dependency missing if qualifier not match
-            //TODO check cyclic dependencies with qualifier
+            static class InjectConstructor {
+                @Inject
+                public InjectConstructor(@Skywalker Dependency dependency) {
+                }
+            }
+
+            @Test
+            void should_throw_exception_if_dependency_with_qualifier_not_found() {
+                config.bind(Dependency.class, new Dependency() {
+                });
+                config.bind(InjectConstructor.class, InjectConstructor.class, new NamedLiteral("Owner"));
+                DependencyNotFountException exception = assertThrows(DependencyNotFountException.class, () -> config.getContext());
+                assertEquals(new Component(InjectConstructor.class, new NamedLiteral("Owner")), exception.getComponent());
+                assertEquals(new Component(Dependency.class, new SkywalkerLiteral()), exception.getDependency());
+            }
+
+            static class SkywalkerDependency implements Dependency{
+                @Inject
+                public SkywalkerDependency(@jakarta.inject.Named("ChosenOne") Dependency dependency) {
+                }
+            }
+            static class NotCyclicDependency implements Dependency{
+                @Inject
+                public NotCyclicDependency(@Skywalker Dependency dependency) {
+                }
+            }
+
+            @Test
+            void should_not_throw_exception_if_component_with_same_type_tagged_with_different_qualifier() {
+                Dependency instance = new Dependency() {
+                };
+                config.bind(Dependency.class, instance, new NamedLiteral("ChosenOne"));
+                config.bind(Dependency.class, SkywalkerDependency.class, new SkywalkerLiteral());
+                config.bind(Dependency.class, NotCyclicDependency.class);
+
+                assertDoesNotThrow(()-> config.getContext());
+            }
         }
     }
 }
@@ -408,6 +442,16 @@ record NamedLiteral(String value) implements jakarta.inject.Named {
     @Override
     public Class<? extends Annotation> annotationType() {
         return jakarta.inject.Named.class;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        return o instanceof jakarta.inject.Named named && Objects.equals(this.value, named.value());
+    }
+
+    @Override
+    public int hashCode() {
+        return "value".hashCode() * 127 ^ value.hashCode();
     }
 }
 
@@ -422,11 +466,19 @@ record SkywalkerLiteral() implements Skywalker {
     public Class<? extends Annotation> annotationType() {
         return Skywalker.class;
     }
+    @Override
+    public boolean equals(Object o) {
+        return o instanceof Skywalker;
+    }
 }
 
 record TestLiteral() implements Test {
     @Override
     public Class<? extends Annotation> annotationType() {
         return Test.class;
+    }
+    @Override
+    public boolean equals(Object o) {
+        return o instanceof Test;
     }
 }

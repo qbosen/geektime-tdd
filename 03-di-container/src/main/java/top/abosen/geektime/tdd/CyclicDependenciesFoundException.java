@@ -8,13 +8,13 @@ import java.util.List;
  */
 public class CyclicDependenciesFoundException extends RuntimeException {
 
-    private final List<Class<?>> components;
+    private final List<Component> components;
 
-    public CyclicDependenciesFoundException(List<Class<?>> components) {
+    public CyclicDependenciesFoundException(List<Component> components) {
         this.components = components;
     }
 
     public Class<?>[] getComponents() {
-        return components.toArray(Class[]::new);
+        return components.stream().map(Component::type).toArray(Class[]::new);
     }
 }

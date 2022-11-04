@@ -5,20 +5,19 @@ package top.abosen.geektime.tdd;
  * @date 2022/10/14
  */
 public class DependencyNotFountException extends RuntimeException{
-    private Class<?> dependency;
-    private Class<?> component;
+    private Component dependency;
+    private Component component;
 
-    public DependencyNotFountException(Class<?> dependency, Class<?> component) {
+    public DependencyNotFountException(Component dependency, Component component) {
         this.dependency = dependency;
         this.component = component;
     }
 
-    public Class<?> getDependency() {
+    public Component getDependency() {
         return dependency;
     }
 
-    public Class<?> getComponent() {
+    public Component getComponent() {
         return component;
     }
-
 }
