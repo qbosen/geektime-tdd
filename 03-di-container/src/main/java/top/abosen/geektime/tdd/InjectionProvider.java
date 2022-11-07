@@ -56,11 +56,16 @@ final class InjectionProvider<T> implements ContextConfig.ComponentProvider<T> {
 
     @Override
     public List<ComponentRef<Object>> getDependencies() {
-        return concat(stream(injectConstructor.getParameters()).map(it-> toComponentRef(it)),
+        return concat(stream(injectConstructor.getParameters()).map(InjectionProvider::toComponentRef),
                 concat(
-                        injectFields.stream().map(Field::getGenericType).map(ComponentRef::of),
-                        injectMethods.stream().flatMap(it -> stream(it.getParameters()).map(Parameter::getParameterizedType)).map(ComponentRef::of)
+                        injectFields.stream().map(InjectionProvider::toComponentRef),
+                        injectMethods.stream().flatMap(it -> stream(it.getParameters()).map(InjectionProvider::toComponentRef))
                 )).toList();
+    }
+
+    private static ComponentRef<Object> toComponentRef(Field field) {
+        Annotation qualifier = stream(field.getAnnotations()).filter(it -> it.annotationType().isAnnotationPresent(Qualifier.class)).findFirst().orElse(null);
+        return ComponentRef.of(field.getGenericType(), qualifier);
     }
 
     private static ComponentRef<Object> toComponentRef(Parameter parameter) {
