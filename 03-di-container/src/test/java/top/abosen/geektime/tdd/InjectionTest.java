@@ -180,7 +180,17 @@ public class InjectionTest {
                 assertArrayEquals(new ComponentRef<?>[]{ComponentRef.of(Dependency.class, new NamedLiteral("ChosenOne"))},
                         provider.getDependencies().toArray());
             }
-            //TODO throw illegal component if illegal qualifier given to injection point
+
+            static class MultiQualifierInjectConstructor {
+                @Inject
+                public MultiQualifierInjectConstructor(@Named("ChoseOne") @Skywalker Dependency dependency) {
+                }
+            }
+
+            @Test
+            void should_throw_exception_if_multi_qualifiers_given() {
+                assertThrows(IllegalComponentException.class, () -> new InjectionProvider<>(MultiQualifierInjectConstructor.class));
+            }
         }
 
     }
@@ -255,7 +265,7 @@ public class InjectionTest {
         @Nested
         class WithQualifier {
             @BeforeEach
-            void before(){
+            void before() {
                 Mockito.reset(context);
                 when(context.get(eq(ComponentRef.of(Dependency.class, new NamedLiteral("ChosenOne"))))).thenReturn(dependency);
             }
@@ -281,7 +291,18 @@ public class InjectionTest {
                 assertArrayEquals(new ComponentRef<?>[]{ComponentRef.of(Dependency.class, new NamedLiteral("ChosenOne"))},
                         provider.getDependencies().toArray());
             }
-            //TODO throw illegal component if illegal qualifier given to injection point
+
+            static class MultiQualifierInjectField {
+                @Inject
+                @Named("ChoseOne")
+                @Skywalker
+                Dependency dependency;
+            }
+
+            @Test
+            void should_throw_exception_if_multi_qualifiers_given() {
+                assertThrows(IllegalComponentException.class, () -> new InjectionProvider<>(MultiQualifierInjectField.class));
+            }
         }
     }
 
@@ -465,7 +486,17 @@ public class InjectionTest {
                 assertArrayEquals(new ComponentRef<?>[]{ComponentRef.of(Dependency.class, new NamedLiteral("ChosenOne"))},
                         provider.getDependencies().toArray());
             }
-            //TODO throw illegal component if illegal qualifier given to injection point
+
+            static class MultiQualifierInjectMethod {
+                @Inject
+                void install(@Named("ChoseOne") @Skywalker Dependency dependency) {
+                }
+            }
+
+            @Test
+            void should_throw_exception_if_multi_qualifiers_given() {
+                assertThrows(IllegalComponentException.class, () -> new InjectionProvider<>(MultiQualifierInjectMethod.class));
+            }
         }
     }
 
