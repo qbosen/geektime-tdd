@@ -15,7 +15,7 @@ public class ContextConfig {
     interface ComponentProvider<T> {
         T get(Context context);
 
-        default List<ComponentRef<Object>> getDependencies() {
+        default List<ComponentRef<?>> getDependencies() {
             return List.of();
         }
     }
@@ -74,7 +74,7 @@ public class ContextConfig {
     }
 
     private void checkDependencies(Component component, Deque<Component> visiting) {
-        for (ComponentRef<Object> dependency : components.get(component).getDependencies()) {
+        for (ComponentRef<?> dependency : components.get(component).getDependencies()) {
             if (!components.containsKey(dependency.component())) {
                 throw new DependencyNotFountException(dependency.component(), component);
             }
