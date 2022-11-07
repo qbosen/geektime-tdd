@@ -14,27 +14,27 @@ public class ComponentRef<T> {
     private Component component;
 
     public static <T> ComponentRef<T> of(Class<T> component) {
-        return new ComponentRef<>(component);
-    }
-
-    public static <T> ComponentRef<T> of(Type type, Annotation qualifier) {
-        return new ComponentRef<>(type, qualifier);
+        return new ComponentRef<>(component, null);
     }
 
     public static <T> ComponentRef<T> of(Type type) {
         return new ComponentRef<>(type, null);
     }
 
-    ComponentRef(Type container, Annotation qualifier) {
+    public static <T> ComponentRef<T> of(Type type, Annotation qualifier) {
+        return new ComponentRef<>(type, qualifier);
+    }
+
+    private ComponentRef(Type container, Annotation qualifier) {
         init(container, qualifier);
     }
 
-    ComponentRef(Class<T> componentType) {
-        init(componentType, null);
+    protected ComponentRef() {
+        this(null);
     }
 
-    protected ComponentRef() {
-        init(((ParameterizedType) this.getClass().getGenericSuperclass()).getActualTypeArguments()[0], null);
+    protected ComponentRef(Annotation qualifier) {
+        init(((ParameterizedType) this.getClass().getGenericSuperclass()).getActualTypeArguments()[0], qualifier);
     }
 
     private void init(Type type, Annotation qualifier) {
