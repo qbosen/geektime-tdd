@@ -64,13 +64,15 @@ final class InjectionProvider<T> implements ContextConfig.ComponentProvider<T> {
     }
 
     private static ComponentRef<Object> toComponentRef(Field field) {
-        Annotation qualifier = stream(field.getAnnotations()).filter(it -> it.annotationType().isAnnotationPresent(Qualifier.class)).findFirst().orElse(null);
-        return ComponentRef.of(field.getGenericType(), qualifier);
+        return ComponentRef.of(field.getGenericType(), getQualifier(field));
     }
 
     private static ComponentRef<Object> toComponentRef(Parameter parameter) {
-        Annotation qualifier = stream(parameter.getAnnotations()).filter(it -> it.annotationType().isAnnotationPresent(Qualifier.class)).findFirst().orElse(null);
-        return ComponentRef.of(parameter.getParameterizedType(), qualifier);
+        return ComponentRef.of(parameter.getParameterizedType(), getQualifier(parameter));
+    }
+
+    private static Annotation getQualifier(AnnotatedElement parameter) {
+        return stream(parameter.getAnnotations()).filter(it -> it.annotationType().isAnnotationPresent(Qualifier.class)).findFirst().orElse(null);
     }
 
     private static <T> Constructor<T> getInjectConstructor(Class<T> implementation) {
@@ -127,15 +129,15 @@ final class InjectionProvider<T> implements ContextConfig.ComponentProvider<T> {
     }
 
     private static Object toDependency(Context context, Field field) {
-        return toDependency(context, field.getGenericType());
+        return toDependency(context, field.getGenericType(), getQualifier(field));
     }
 
     private static Object[] toDependencies(Context context, Executable executable) {
-        return stream(executable.getParameters()).map(p -> toDependency(context, p.getParameterizedType())).toArray();
+        return stream(executable.getParameters()).map(p -> toDependency(context, p.getParameterizedType(), getQualifier(p))).toArray();
     }
 
-    private static Object toDependency(Context context, Type type) {
-        return context.get(ComponentRef.of(type));
+    private static Object toDependency(Context context, Type type, Annotation qualifier) {
+        return context.get(ComponentRef.of(type, qualifier));
     }
 
     private static boolean notOverrideByNoInjectMethod(Class<?> component, Method m) {

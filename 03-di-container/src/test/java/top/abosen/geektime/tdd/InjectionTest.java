@@ -149,12 +149,30 @@ public class InjectionTest {
 
         @Nested
         class WithQualifier {
-            //TODO inject with qualifier
+
+            @BeforeEach
+            void before() {
+                Mockito.reset(context);
+                when(context.get(eq(ComponentRef.of(Dependency.class, new NamedLiteral("ChosenOne"))))).thenReturn(dependency);
+            }
+
             static class InjectConstructor {
+
+                private final Dependency dependency;
+
                 @Inject
                 public InjectConstructor(@Named("ChosenOne") Dependency dependency) {
+                    this.dependency = dependency;
                 }
             }
+
+            @Test
+            void should_inject_dependency_with_qualifier_via_constructor() {
+                InjectionProvider<InjectConstructor> provider = new InjectionProvider<>(InjectConstructor.class);
+                InjectConstructor component = provider.get(context);
+                assertSame(dependency, component.dependency);
+            }
+
 
             @Test
             void should_include_dependency_with_qualifier() {
@@ -236,13 +254,25 @@ public class InjectionTest {
 
         @Nested
         class WithQualifier {
-            //TODO inject with qualifier
-            //TODO include qualifier with dependency
+            @BeforeEach
+            void before(){
+                Mockito.reset(context);
+                when(context.get(eq(ComponentRef.of(Dependency.class, new NamedLiteral("ChosenOne"))))).thenReturn(dependency);
+            }
+
+
             static class InjectField {
                 @Inject
                 @Named("ChosenOne")
                 Dependency dependency;
 
+            }
+
+            @Test
+            void should_inject_dependency_with_qualifier_via_field() {
+                InjectionProvider<InjectField> provider = new InjectionProvider<>(InjectField.class);
+                InjectField component = provider.get(context);
+                assertSame(dependency, component.dependency);
             }
 
             @Test
@@ -405,12 +435,28 @@ public class InjectionTest {
 
         @Nested
         class WithQualifier {
-            //TODO inject with qualifier
-            //TODO include qualifier with dependency
+
+            @BeforeEach
+            void before() {
+                Mockito.reset(context);
+                when(context.get(eq(ComponentRef.of(Dependency.class, new NamedLiteral("ChosenOne"))))).thenReturn(dependency);
+            }
+
             static class InjectMethod {
+
+                private Dependency dependency;
+
                 @Inject
                 void install(@Named("ChosenOne") Dependency dependency) {
+                    this.dependency = dependency;
                 }
+            }
+
+            @Test
+            void should_inject_dependency_with_qualifier_via_method() {
+                InjectionProvider<InjectMethod> provider = new InjectionProvider<>(InjectMethod.class);
+                InjectMethod component = provider.get(context);
+                assertSame(dependency, component.dependency);
             }
 
             @Test
