@@ -1,9 +1,6 @@
 package top.abosen.geektime.tdd;
 
-import jakarta.inject.Inject;
-import jakarta.inject.Provider;
-import jakarta.inject.Qualifier;
-import jakarta.inject.Singleton;
+import jakarta.inject.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.Nested;
@@ -11,12 +8,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.Mockito;
+import org.mockito.internal.matchers.Not;
 import org.mockito.internal.util.collections.Sets;
 
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Documented;
 import java.lang.annotation.Retention;
 import java.util.*;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
@@ -207,37 +207,37 @@ class ContextTest {
 
         @Nested
         class WithScope {
-            static class NoSingleton {
+            static class NotSingleton {
             }
 
             @Test
             void should_not_be_singleton_scope_by_default() {
-                config.bind(NoSingleton.class, NoSingleton.class);
+                config.bind(NotSingleton.class, NotSingleton.class);
                 Context context = config.getContext();
-                assertNotSame(context.get(ComponentRef.of(NoSingleton.class)), context.get(ComponentRef.of(NoSingleton.class)));
+                assertNotSame(context.get(ComponentRef.of(NotSingleton.class)), context.get(ComponentRef.of(NotSingleton.class)));
             }
 
             @Test
             void should_bind_component_as_singleton_scoped() {
-                config.bind(NoSingleton.class, NoSingleton.class, new SingletonLiteral());
+                config.bind(NotSingleton.class, NotSingleton.class, new SingletonLiteral());
                 Context context = config.getContext();
-                assertSame(context.get(ComponentRef.of(NoSingleton.class)), context.get(ComponentRef.of(NoSingleton.class)));
+                assertSame(context.get(ComponentRef.of(NotSingleton.class)), context.get(ComponentRef.of(NotSingleton.class)));
             }
 
             @Nested
             class WithQualifier {
                 @Test
                 void should_not_be_singleton_scope_by_default() {
-                    config.bind(NoSingleton.class, NoSingleton.class, new SkywalkerLiteral());
+                    config.bind(NotSingleton.class, NotSingleton.class, new SkywalkerLiteral());
                     Context context = config.getContext();
-                    assertNotSame(context.get(ComponentRef.of(NoSingleton.class, new SkywalkerLiteral())), context.get(ComponentRef.of(NoSingleton.class, new SkywalkerLiteral())));
+                    assertNotSame(context.get(ComponentRef.of(NotSingleton.class, new SkywalkerLiteral())), context.get(ComponentRef.of(NotSingleton.class, new SkywalkerLiteral())));
                 }
 
                 @Test
                 void should_bind_component_as_singleton_scoped() {
-                    config.bind(NoSingleton.class, NoSingleton.class, new SingletonLiteral(), new SkywalkerLiteral());
+                    config.bind(NotSingleton.class, NotSingleton.class, new SingletonLiteral(), new SkywalkerLiteral());
                     Context context = config.getContext();
-                    assertSame(context.get(ComponentRef.of(NoSingleton.class, new SkywalkerLiteral())), context.get(ComponentRef.of(NoSingleton.class, new SkywalkerLiteral())));
+                    assertSame(context.get(ComponentRef.of(NotSingleton.class, new SkywalkerLiteral())), context.get(ComponentRef.of(NotSingleton.class, new SkywalkerLiteral())));
                 }
 
                 @Test
@@ -249,7 +249,7 @@ class ContextTest {
             }
 
             @Singleton
-            static class SingletonAnnotated implements Dependency{
+            static class SingletonAnnotated implements Dependency {
             }
 
             @Test
@@ -260,6 +260,15 @@ class ContextTest {
             }
 
             //TODO bind component with customize scope annotation
+            @Test
+            void should_bind_component_as_customized_scope() {
+                config.scope(Pooled.class, PooledProvider::new);
+                config.bind(NotSingleton.class, NotSingleton.class, new PooledLiteral());
+                Context context = config.getContext();
+
+                List<NotSingleton> pooled = IntStream.range(0, 5).mapToObj(i -> context.get(ComponentRef.of(NotSingleton.class))).distinct().toList();
+                assertEquals(PooledProvider.MAX, pooled.size());
+            }
         }
     }
 
@@ -278,15 +287,16 @@ class ContextTest {
 
         static Stream<Arguments> should_throw_exception_if_dependency_not_found() {
             return Stream.of(
-                    Arguments.of(Named.of("Inject Constructor", DependencyCheck.MissingDependencyConstructor.class)),
-                    Arguments.of(Named.of("Inject Field", DependencyCheck.MissingDependencyField.class)),
-                    Arguments.of(Named.of("Inject Method", DependencyCheck.MissingDependencyMethod.class)),
-                    Arguments.of(Named.of("Provider in Inject Constructor", DependencyCheck.MissingDependencyProviderConstructor.class)),
-                    Arguments.of(Named.of("Provider in Inject Field", DependencyCheck.MissingDependencyProviderField.class)),
-                    Arguments.of(Named.of("Provider in Inject Method", DependencyCheck.MissingDependencyProviderMethod.class))
+                    Arguments.of(Named.of("Inject Constructor", MissingDependencyConstructor.class)),
+                    Arguments.of(Named.of("Inject Field", MissingDependencyField.class)),
+                    Arguments.of(Named.of("Inject Method", MissingDependencyMethod.class)),
+                    Arguments.of(Named.of("Provider in Inject Constructor", MissingDependencyProviderConstructor.class)),
+                    Arguments.of(Named.of("Provider in Inject Field", MissingDependencyProviderField.class)),
+                    Arguments.of(Named.of("Provider in Inject Method", MissingDependencyProviderMethod.class)),
+                    Arguments.of(Named.of("Scope", MissingDependencyScope.class)),
+                    Arguments.of(Named.of("Scope Provider", MissingDependencyScopeProvider.class))
             );
         }
-        //TODO missing dependencies with scope
 
         static class MissingDependencyConstructor implements TestComponent {
             @Inject
@@ -320,6 +330,18 @@ class ContextTest {
             @Inject
             void install(Provider<Dependency> dependency) {
             }
+        }
+
+        @Singleton
+        static class MissingDependencyScope implements TestComponent {
+            @Inject
+            private Dependency dependency;
+        }
+
+        @Singleton
+        static class MissingDependencyScopeProvider implements TestComponent {
+            @Inject
+            private Provider<Dependency> dependency;
         }
 
         @ParameterizedTest(name = "cyclic dependency between {0} and {1}")
@@ -651,5 +673,50 @@ record SingletonLiteral() implements Singleton {
     @Override
     public boolean equals(Object obj) {
         return obj instanceof Singleton;
+    }
+}
+
+@Scope
+@Documented
+@Retention(RUNTIME)
+@interface Pooled {
+}
+
+record PooledLiteral() implements Pooled {
+    @Override
+    public Class<? extends Annotation> annotationType() {
+        return Pooled.class;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof Pooled;
+    }
+}
+
+class PooledProvider<T> implements ContextConfig.ComponentProvider<T> {
+    static int MAX = 2;
+    int current;
+    private List<T> pool;
+    private ContextConfig.ComponentProvider<T> provider;
+
+    public PooledProvider(ContextConfig.ComponentProvider<T> provider) {
+        this.provider = provider;
+        this.pool = new ArrayList<>();
+        this.current = 0;
+    }
+
+    @Override
+    public T get(Context context) {
+        if (current < MAX) {
+            pool.add(provider.get(context));
+        }
+
+        return pool.get(current++ % MAX);
+    }
+
+    @Override
+    public List<ComponentRef<?>> getDependencies() {
+        return provider.getDependencies();
     }
 }

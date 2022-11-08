@@ -3,15 +3,20 @@ package top.abosen.geektime.tdd;
 import jakarta.inject.Provider;
 import jakarta.inject.Qualifier;
 import jakarta.inject.Scope;
+import jakarta.inject.Singleton;
 
 import java.lang.annotation.Annotation;
 import java.util.*;
+import java.util.function.Function;
 
 /**
  * @author qiubaisen
  * @date 2022/10/14
  */
 public class ContextConfig {
+    public ContextConfig() {
+        scope(Singleton.class, SingletonProvider::new);
+    }
 
     interface ComponentProvider<T> {
         T get(Context context);
@@ -22,6 +27,11 @@ public class ContextConfig {
     }
 
     private Map<Component, ComponentProvider<?>> components = new HashMap<>();
+    private Map<Class<?>, Function<ComponentProvider<?>, ComponentProvider<?>>> scopes = new HashMap<>();
+
+    public <T> void scope(Class<T> scopeType, Function<ComponentProvider<?>, ComponentProvider<?>> provider) {
+        scopes.put(scopeType, provider);
+    }
 
     public <T> void bind(Class<T> type, T instance) {
         components.put(new Component(type, null), (ComponentProvider<T>) context -> instance);
@@ -53,7 +63,7 @@ public class ContextConfig {
                 .findFirst().or(() -> scopeFromType);
 
         ComponentProvider<R> injectionProvider = new InjectionProvider<>(implementation);
-        ComponentProvider<R> provider = scope.map(s -> ((ComponentProvider<R>) new SingletonProvider<>(injectionProvider))).orElse(injectionProvider);
+        ComponentProvider<R> provider = scope.map(s -> getScopeProvider(s, injectionProvider)).orElse(injectionProvider);
 
         if (qualifiers.isEmpty()) {
             components.put(new Component(type, null), provider);
@@ -62,6 +72,10 @@ public class ContextConfig {
         for (Annotation qualifier : qualifiers) {
             components.put(new Component(type, qualifier), provider);
         }
+    }
+
+    private  <T> ComponentProvider<T> getScopeProvider(Annotation annotation, ComponentProvider<T> provider) {
+        return (ComponentProvider<T>) scopes.get(annotation.annotationType()).apply(provider);
     }
 
     static class SingletonProvider<T> implements ComponentProvider<T> {
@@ -78,6 +92,11 @@ public class ContextConfig {
                 singleton = provider.get(context);
             }
             return singleton;
+        }
+
+        @Override
+        public List<ComponentRef<?>> getDependencies() {
+            return provider.getDependencies();
         }
     }
 
