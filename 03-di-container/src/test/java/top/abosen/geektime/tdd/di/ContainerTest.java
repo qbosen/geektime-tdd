@@ -1,4 +1,4 @@
-package top.abosen.geektime.tdd;
+package top.abosen.geektime.tdd.di;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;

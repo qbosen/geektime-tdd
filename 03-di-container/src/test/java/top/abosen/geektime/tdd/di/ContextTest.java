@@ -1,4 +1,4 @@
-package top.abosen.geektime.tdd;
+package top.abosen.geektime.tdd.di;
 
 import jakarta.inject.*;
 import org.junit.jupiter.api.BeforeEach;

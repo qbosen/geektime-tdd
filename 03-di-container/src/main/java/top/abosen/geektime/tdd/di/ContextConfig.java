@@ -1,4 +1,4 @@
-package top.abosen.geektime.tdd;
+package top.abosen.geektime.tdd.di;
 
 import jakarta.inject.Provider;
 import jakarta.inject.Qualifier;

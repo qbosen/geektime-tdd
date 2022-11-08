@@ -1,4 +1,4 @@
-package top.abosen.geektime.tdd;
+package top.abosen.geektime.tdd.di;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.ParameterizedType;
@@ -50,10 +50,6 @@ public class ComponentRef<T> {
 
     public Type getContainer() {
         return container;
-    }
-
-    public Class<?> getComponentType() {
-        return component.type();
     }
 
     public boolean isContainer() {
