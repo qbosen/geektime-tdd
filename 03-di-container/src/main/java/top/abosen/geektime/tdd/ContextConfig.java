@@ -56,6 +56,7 @@ public class ContextConfig {
     }
 
     private <T, R extends T> ComponentProvider<R> createScopeProvider(Class<R> implementation, List<Annotation> scopes) {
+        if(scopes.size() > 1) throw new IllegalComponentException();
         ComponentProvider<R> injectionProvider = new InjectionProvider<>(implementation);
         return scopes.stream().findFirst().or(() -> scopeFromImplementation(implementation))
                 .map(s -> getScopeProvider(s, injectionProvider)).orElse(injectionProvider);
@@ -79,8 +80,9 @@ public class ContextConfig {
         return Stream.of(Qualifier.class, Scope.class).filter(annotation.annotationType()::isAnnotationPresent).findFirst().orElse(Illegal.class);
     }
 
-    private  <T> ComponentProvider<T> getScopeProvider(Annotation annotation, ComponentProvider<T> provider) {
-        return (ComponentProvider<T>) scopes.get(annotation.annotationType()).create(provider);
+    private  <T> ComponentProvider<T> getScopeProvider(Annotation scope, ComponentProvider<T> provider) {
+        if (!scopes.containsKey(scope.annotationType())) throw new IllegalComponentException();
+        return (ComponentProvider<T>) scopes.get(scope.annotationType()).create(provider);
     }
 
 

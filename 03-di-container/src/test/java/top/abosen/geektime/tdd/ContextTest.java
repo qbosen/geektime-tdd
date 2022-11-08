@@ -222,6 +222,49 @@ class ContextTest {
                 assertSame(context.get(ComponentRef.of(NotSingleton.class)), context.get(ComponentRef.of(NotSingleton.class)));
             }
 
+            @Singleton
+            static class SingletonAnnotated implements Dependency {
+
+            }
+
+            @Test
+            void should_retrieve_scope_annotation_from_component() {
+                config.bind(Dependency.class, SingletonAnnotated.class);
+                Context context = config.getContext();
+                assertSame(context.get(ComponentRef.of(Dependency.class)), context.get(ComponentRef.of(Dependency.class)));
+            }
+
+            @Test
+            void should_bind_component_as_customized_scope() {
+                config.scope(Pooled.class, PooledProvider::new);
+                config.bind(NotSingleton.class, NotSingleton.class, new PooledLiteral());
+                Context context = config.getContext();
+
+                List<NotSingleton> pooled = IntStream.range(0, 5).mapToObj(i -> context.get(ComponentRef.of(NotSingleton.class))).distinct().toList();
+                assertEquals(PooledProvider.MAX, pooled.size());
+            }
+
+            @Test
+            void should_throw_exception_if_multi_scope_provided() {
+                assertThrows(IllegalComponentException.class, () -> config.bind(NotSingleton.class, NotSingleton.class, new SingletonLiteral(), new PooledLiteral()));
+            }
+
+            @Singleton
+            @Pooled
+            static class MultiScopeAnnotated {
+
+            }
+
+            @Test
+            void should_throw_exception_if_multi_scope_annotated() {
+                assertThrows(IllegalComponentException.class, () -> config.bind(MultiScopeAnnotated.class, MultiScopeAnnotated.class));
+            }
+
+            @Test
+            void should_throw_exception_if_scope_undefined() {
+                assertThrows(IllegalComponentException.class, () -> config.bind(NotSingleton.class, NotSingleton.class, new PooledLiteral()));
+            }
+
             @Nested
             class WithQualifier {
                 @Test
@@ -244,28 +287,6 @@ class ContextTest {
                     Context context = config.getContext();
                     assertSame(context.get(ComponentRef.of(Dependency.class, new SkywalkerLiteral())), context.get(ComponentRef.of(Dependency.class, new SkywalkerLiteral())));
                 }
-            }
-
-            @Singleton
-            static class SingletonAnnotated implements Dependency {
-            }
-
-            @Test
-            void should_retrieve_scope_annotation_from_component() {
-                config.bind(Dependency.class, SingletonAnnotated.class);
-                Context context = config.getContext();
-                assertSame(context.get(ComponentRef.of(Dependency.class)), context.get(ComponentRef.of(Dependency.class)));
-            }
-
-            //TODO bind component with customize scope annotation
-            @Test
-            void should_bind_component_as_customized_scope() {
-                config.scope(Pooled.class, PooledProvider::new);
-                config.bind(NotSingleton.class, NotSingleton.class, new PooledLiteral());
-                Context context = config.getContext();
-
-                List<NotSingleton> pooled = IntStream.range(0, 5).mapToObj(i -> context.get(ComponentRef.of(NotSingleton.class))).distinct().toList();
-                assertEquals(PooledProvider.MAX, pooled.size());
             }
         }
     }
@@ -367,7 +388,6 @@ class ContextTest {
             return iterateMap(components).flatMap(component -> iterateMap(dependencies).map(dependency -> Arguments.of(component, dependency)));
         }
 
-        //TODO cyclic dependencies with scope
         static class CyclicComponentInjectConstructor implements TestComponent {
             @Inject
             public CyclicComponentInjectConstructor(Dependency dependency) {
