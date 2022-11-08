@@ -16,7 +16,7 @@ import static java.util.stream.Stream.concat;
  * @author qiubaisen
  * @date 2022/10/19
  */
-final class InjectionProvider<T> implements ContextConfig.ComponentProvider<T> {
+final class InjectionProvider<T> implements ComponentProvider<T> {
     private final Injectable<Constructor<T>> injectConstructor;
     private final List<Injectable<Method>> injectMethods;
     private final List<Injectable<Field>> injectFields;

@@ -8,8 +8,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.mockito.Mockito;
-import org.mockito.internal.matchers.Not;
 import org.mockito.internal.util.collections.Sets;
 
 import java.lang.annotation.Annotation;
@@ -694,13 +692,13 @@ record PooledLiteral() implements Pooled {
     }
 }
 
-class PooledProvider<T> implements ContextConfig.ComponentProvider<T> {
+class PooledProvider<T> implements ComponentProvider<T> {
     static int MAX = 2;
     int current;
     private List<T> pool;
-    private ContextConfig.ComponentProvider<T> provider;
+    private ComponentProvider<T> provider;
 
-    public PooledProvider(ContextConfig.ComponentProvider<T> provider) {
+    public PooledProvider(ComponentProvider<T> provider) {
         this.provider = provider;
         this.pool = new ArrayList<>();
         this.current = 0;
