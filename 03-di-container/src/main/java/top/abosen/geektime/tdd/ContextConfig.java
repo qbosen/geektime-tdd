@@ -2,6 +2,7 @@ package top.abosen.geektime.tdd;
 
 import jakarta.inject.Provider;
 import jakarta.inject.Qualifier;
+import jakarta.inject.Scope;
 
 import java.lang.annotation.Annotation;
 import java.util.*;
@@ -27,11 +28,11 @@ public class ContextConfig {
     }
 
     public <T, R extends T> void bind(Class<T> type, Class<R> implementation) {
-        components.put(new Component(type, null), new InjectionProvider<>(implementation));
+        bind(type, implementation, implementation.getAnnotations());
     }
 
     public <T> void bind(Class<T> type, T instance, Annotation... qualifiers) {
-        if (Arrays.stream(qualifiers).anyMatch(it->!it.annotationType().isAnnotationPresent(Qualifier.class))) {
+        if (Arrays.stream(qualifiers).anyMatch(it -> !it.annotationType().isAnnotationPresent(Qualifier.class))) {
             throw new IllegalComponentException();
         }
         for (Annotation qualifier : qualifiers) {
@@ -39,12 +40,44 @@ public class ContextConfig {
         }
     }
 
-    public <T, R extends T> void bind(Class<T> type, Class<R> implementation, Annotation... qualifiers) {
-        if (Arrays.stream(qualifiers).anyMatch(it->!it.annotationType().isAnnotationPresent(Qualifier.class))) {
+    public <T, R extends T> void bind(Class<T> type, Class<R> implementation, Annotation... annotations) {
+        if (Arrays.stream(annotations).map(Annotation::annotationType)
+                .anyMatch(it -> !it.isAnnotationPresent(Qualifier.class) && !it.isAnnotationPresent(Scope.class))) {
             throw new IllegalComponentException();
         }
+
+        Optional<Annotation> scopeFromType = Arrays.stream(implementation.getAnnotations()).filter(a -> a.annotationType().isAnnotationPresent(Scope.class)).findFirst();
+
+        List<Annotation> qualifiers = Arrays.stream(annotations).filter(a -> a.annotationType().isAnnotationPresent(Qualifier.class)).toList();
+        Optional<Annotation> scope = Arrays.stream(annotations).filter(a -> a.annotationType().isAnnotationPresent(Scope.class))
+                .findFirst().or(() -> scopeFromType);
+
+        ComponentProvider<R> injectionProvider = new InjectionProvider<>(implementation);
+        ComponentProvider<R> provider = scope.map(s -> ((ComponentProvider<R>) new SingletonProvider<>(injectionProvider))).orElse(injectionProvider);
+
+        if (qualifiers.isEmpty()) {
+            components.put(new Component(type, null), provider);
+        }
+
         for (Annotation qualifier : qualifiers) {
-            components.put(new Component(type, qualifier), new InjectionProvider<>(implementation));
+            components.put(new Component(type, qualifier), provider);
+        }
+    }
+
+    static class SingletonProvider<T> implements ComponentProvider<T> {
+        private T singleton;
+        private ComponentProvider<T> provider;
+
+        public SingletonProvider(ComponentProvider<T> provider) {
+            this.provider = provider;
+        }
+
+        @Override
+        public T get(Context context) {
+            if (singleton == null) {
+                singleton = provider.get(context);
+            }
+            return singleton;
         }
     }
 
@@ -88,9 +121,6 @@ public class ContextConfig {
 
                 checkDependencies(dependency.component(), visiting);
                 visiting.removeLast();
-            } else {
-                // todo transitive
-
             }
         }
     }

@@ -3,6 +3,7 @@ package top.abosen.geektime.tdd;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 import jakarta.inject.Qualifier;
+import jakarta.inject.Singleton;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.Nested;
@@ -203,6 +204,63 @@ class ContextTest {
                 assertThrows(IllegalComponentException.class, () -> config.bind(InjectConstructor.class, InjectConstructor.class, new TestLiteral()));
             }
         }
+
+        @Nested
+        class WithScope {
+            static class NoSingleton {
+            }
+
+            @Test
+            void should_not_be_singleton_scope_by_default() {
+                config.bind(NoSingleton.class, NoSingleton.class);
+                Context context = config.getContext();
+                assertNotSame(context.get(ComponentRef.of(NoSingleton.class)), context.get(ComponentRef.of(NoSingleton.class)));
+            }
+
+            @Test
+            void should_bind_component_as_singleton_scoped() {
+                config.bind(NoSingleton.class, NoSingleton.class, new SingletonLiteral());
+                Context context = config.getContext();
+                assertSame(context.get(ComponentRef.of(NoSingleton.class)), context.get(ComponentRef.of(NoSingleton.class)));
+            }
+
+            @Nested
+            class WithQualifier {
+                @Test
+                void should_not_be_singleton_scope_by_default() {
+                    config.bind(NoSingleton.class, NoSingleton.class, new SkywalkerLiteral());
+                    Context context = config.getContext();
+                    assertNotSame(context.get(ComponentRef.of(NoSingleton.class, new SkywalkerLiteral())), context.get(ComponentRef.of(NoSingleton.class, new SkywalkerLiteral())));
+                }
+
+                @Test
+                void should_bind_component_as_singleton_scoped() {
+                    config.bind(NoSingleton.class, NoSingleton.class, new SingletonLiteral(), new SkywalkerLiteral());
+                    Context context = config.getContext();
+                    assertSame(context.get(ComponentRef.of(NoSingleton.class, new SkywalkerLiteral())), context.get(ComponentRef.of(NoSingleton.class, new SkywalkerLiteral())));
+                }
+
+                @Test
+                void should_retrieve_scope_annotation_from_component() {
+                    config.bind(Dependency.class, SingletonAnnotated.class, new SkywalkerLiteral());
+                    Context context = config.getContext();
+                    assertSame(context.get(ComponentRef.of(Dependency.class, new SkywalkerLiteral())), context.get(ComponentRef.of(Dependency.class, new SkywalkerLiteral())));
+                }
+            }
+
+            @Singleton
+            static class SingletonAnnotated implements Dependency{
+            }
+
+            @Test
+            void should_retrieve_scope_annotation_from_component() {
+                config.bind(Dependency.class, SingletonAnnotated.class);
+                Context context = config.getContext();
+                assertSame(context.get(ComponentRef.of(Dependency.class)), context.get(ComponentRef.of(Dependency.class)));
+            }
+
+            //TODO bind component with customize scope annotation
+        }
     }
 
     @Nested
@@ -228,6 +286,7 @@ class ContextTest {
                     Arguments.of(Named.of("Provider in Inject Method", DependencyCheck.MissingDependencyProviderMethod.class))
             );
         }
+        //TODO missing dependencies with scope
 
         static class MissingDependencyConstructor implements TestComponent {
             @Inject
@@ -288,6 +347,7 @@ class ContextTest {
             return iterateMap(components).flatMap(component -> iterateMap(dependencies).map(dependency -> Arguments.of(component, dependency)));
         }
 
+        //TODO cyclic dependencies with scope
         static class CyclicComponentInjectConstructor implements TestComponent {
             @Inject
             public CyclicComponentInjectConstructor(Dependency dependency) {
@@ -579,5 +639,17 @@ record TestLiteral() implements Test {
     @Override
     public boolean equals(Object o) {
         return o instanceof Test;
+    }
+}
+
+record SingletonLiteral() implements Singleton {
+    @Override
+    public Class<? extends Annotation> annotationType() {
+        return Singleton.class;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof Singleton;
     }
 }
