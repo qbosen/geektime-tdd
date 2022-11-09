@@ -123,11 +123,11 @@ public class ContextConfig {
             }
 
             private Annotation[] annotations() {
-                return stream(field.getAnnotations()).filter(this::isConfigAnnotation).toArray(Annotation[]::new);
+                return stream(field.getAnnotations()).filter(it -> !isConfigAnnotation(it)).toArray(Annotation[]::new);
             }
 
             private boolean isConfigAnnotation(Annotation it) {
-                return it.getClass().getEnclosingClass() != Config.class;
+                return it.annotationType().getEnclosingClass() == Config.class;
             }
         }
     }

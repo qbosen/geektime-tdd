@@ -9,7 +9,7 @@ import java.lang.annotation.*;
 public interface Config {
 
     /**
-     * TODO 用于 DSL
+     * 用于 DSL 中 标准该类型的注册类型
      */
     @Documented
     @Retention(RetentionPolicy.RUNTIME)

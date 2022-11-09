@@ -657,6 +657,112 @@ class ContextTest {
             Context context = config.getContext();
             assertSame(instance, context.get(ComponentRef.of(Implementation.class)));
         }
+
+        @Test
+        void should_bind_component_as_its_own_type() {
+            config.from(new Config() {
+                Implementation implementation;
+            });
+
+            Context context = config.getContext();
+            assertTrue(context.getOpt(ComponentRef.of(Implementation.class)).isPresent());
+        }
+
+        @Test
+        void should_bind_instance_using_export_type() {
+            Implementation instance = new Implementation();
+            config.from(new Config() {
+                @Export(Api.class)
+                Implementation implementation = instance;
+            });
+
+            Context context = config.getContext();
+            assertTrue(context.getOpt(ComponentRef.of(Api.class)).isPresent());
+            assertFalse(context.getOpt(ComponentRef.of(Implementation.class)).isPresent());
+        }
+
+        @Test
+        void should_bind_component_using_export_type() {
+            config.from(new Config() {
+                @Export(Api.class)
+                Implementation implementation;
+            });
+
+            Context context = config.getContext();
+            assertTrue(context.getOpt(ComponentRef.of(Api.class)).isPresent());
+            assertFalse(context.getOpt(ComponentRef.of(Implementation.class)).isPresent());
+        }
+
+        @Test
+        void should_bind_instance_with_qualifier() {
+            Implementation instance = new Implementation();
+            config.from(new Config() {
+                @Skywalker
+                Implementation implementation = instance;
+            });
+
+            Context context = config.getContext();
+            assertSame(instance, context.get(ComponentRef.of(Implementation.class, new SkywalkerLiteral())));
+        }
+
+        @Test
+        void should_bind_component_with_qualifier() {
+            config.from(new Config() {
+                @Skywalker
+                Implementation implementation;
+            });
+
+            Context context = config.getContext();
+            assertNotNull(context.get(ComponentRef.of(Implementation.class, new SkywalkerLiteral())));
+        }
+
+        @Test
+        void should_bind_instance_with_provider() {
+            Implementation instance = new Implementation();
+            config.from(new Config() {
+                Api implementation = instance;
+            });
+
+            Context context = config.getContext();
+            assertSame(instance, context.get(new ComponentRef<Provider<Api>>() {
+            }).get());
+        }
+
+        @Test
+        void should_bind_component_with_provider() {
+            config.from(new Config() {
+                Implementation implementation;
+            });
+
+            Context context = config.getContext();
+            assertNotNull(context.get(new ComponentRef<Provider<Implementation>>() {
+            }).get());
+        }
+
+        @Test
+        void should_bind_instance_with_scope() {
+            Implementation instance = new Implementation();
+            config.from(new Config() {
+                @Singleton
+                Api implementation = instance;
+            });
+
+            Context context = config.getContext();
+            assertSame(context.get(ComponentRef.of(Api.class)), context.get(ComponentRef.of(Api.class)));
+        }
+
+        @Test
+        void should_bind_component_with_scope() {
+            config.from(new Config() {
+                @Singleton
+                Implementation implementation;
+            });
+
+            Context context = config.getContext();
+            assertSame(context.get(ComponentRef.of(Implementation.class)), context.get(ComponentRef.of(Implementation.class)));
+        }
+
+
     }
 }
 
