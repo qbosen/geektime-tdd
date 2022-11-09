@@ -6,11 +6,13 @@ import jakarta.inject.Scope;
 import jakarta.inject.Singleton;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
 import java.text.MessageFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.util.Arrays.stream;
 import static java.util.stream.Collectors.joining;
 
 /**
@@ -29,26 +31,9 @@ public class ContextConfig {
         scopes.put(scopeType, provider);
     }
 
-    public <T> void bind(Class<T> type, T instance) {
-        components.put(new Component(type, null), (ComponentProvider<T>) context -> instance);
-    }
-
-    public <T, R extends T> void bind(Class<T> type, Class<R> implementation) {
-        bind(type, implementation, implementation.getAnnotations());
-    }
-
-    public <T> void bind(Class<T> type, T instance, Annotation... qualifiers) {
-        if (Arrays.stream(qualifiers).anyMatch(it -> !it.annotationType().isAnnotationPresent(Qualifier.class))) {
-            throw new IllegalComponentException();
-        }
-        for (Annotation qualifier : qualifiers) {
-            components.put(new Component(type, qualifier), (ComponentProvider<T>) context -> instance);
-        }
-    }
-
-    public <T, R extends T> void bind(Class<T> type, Class<R> implementation, Annotation... annotations) {
-
-        Map<Class<?>, List<Annotation>> annotationGroups = Arrays.stream(annotations).collect(Collectors.groupingBy(this::typeOf, Collectors.toList()));
+    public <T, R extends T> void bindComponent(Class<T> type, Class<R> implementation, Annotation... annotations) {
+        Map<Class<?>, List<Annotation>> annotationGroups = Stream.concat(stream(implementation.getAnnotations()), stream(annotations))
+                .collect(Collectors.groupingBy(this::typeOf, Collectors.toList()));
 
         if (annotationGroups.containsKey(Illegal.class)) {
             throw new IllegalComponentException();
@@ -56,6 +41,17 @@ public class ContextConfig {
 
         bind(type, annotationGroups.getOrDefault(Qualifier.class, List.of()),
                 createScopeProvider(implementation, annotationGroups.getOrDefault(Scope.class, List.of())));
+    }
+
+    public <T> void bindInstance(Class<T> type, T instance, Annotation... annotations) {
+        Map<Class<?>, List<Annotation>> annotationGroups = stream(annotations)
+                .collect(Collectors.groupingBy(this::typeOf, Collectors.toList()));
+
+        if (annotationGroups.containsKey(Illegal.class)) {
+            throw new IllegalComponentException();
+        }
+
+        bind(type, annotationGroups.getOrDefault(Qualifier.class, List.of()), (ComponentProvider<T>) context -> instance);
     }
 
     private <T, R extends T> ComponentProvider<R> createScopeProvider(Class<R> implementation, List<Annotation> scopes) {
@@ -75,7 +71,65 @@ public class ContextConfig {
     }
 
     private static Optional<Annotation> scopeFromImplementation(Class<?> implementation) {
-        return Arrays.stream(implementation.getAnnotations()).filter(a -> a.annotationType().isAnnotationPresent(Scope.class)).findFirst();
+        return stream(implementation.getAnnotations()).filter(a -> a.annotationType().isAnnotationPresent(Scope.class)).findFirst();
+    }
+
+    public void from(Config config) {
+        new DSL(config).bind();
+    }
+
+    private class DSL {
+
+        private final Config config;
+
+        DSL(Config config) {
+            this.config = config;
+        }
+
+        void bind() {
+            declarations().forEach(declaration -> declaration.value().ifPresentOrElse(declaration::bindInstance, declaration::bindComponent));
+        }
+
+        private List<Declaration> declarations() {
+            return stream(config.getClass().getDeclaredFields()).filter(it -> !it.isSynthetic()).map(Declaration::new).toList();
+        }
+
+        private class Declaration {
+            private final Field field;
+
+            Declaration(Field field) {
+                this.field = field;
+            }
+
+            void bindInstance(Object instance) {
+                ContextConfig.this.bindInstance((Class<Object>) type(), instance, annotations());
+            }
+
+            void bindComponent() {
+                ContextConfig.this.bindComponent((Class<Object>) type(), (Class<Object>) field.getType(), annotations());
+            }
+
+            private Optional<Object> value() {
+                try {
+                    return Optional.ofNullable(field.get(config));
+                } catch (IllegalAccessException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            private Class<?> type() {
+                Config.Export export = field.getAnnotation(Config.Export.class);
+                return export == null ? field.getType() : export.value();
+            }
+
+            private Annotation[] annotations() {
+                return stream(field.getAnnotations()).filter(this::isConfigAnnotation).toArray(Annotation[]::new);
+            }
+
+            private boolean isConfigAnnotation(Annotation it) {
+                return it.getClass().getEnclosingClass() != Config.class;
+            }
+        }
     }
 
     private @interface Illegal {
@@ -165,6 +219,7 @@ class ContextConfigError extends Error {
             return component;
         }
     }
+
     static class CyclicDependenciesFound extends ContextConfigError {
 
         private final Collection<Component> path;
