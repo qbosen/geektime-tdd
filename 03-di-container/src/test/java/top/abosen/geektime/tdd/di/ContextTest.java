@@ -106,7 +106,7 @@ class ContextTest {
 
         @Test
         public void should_throw_exception_for_unbind_type() {
-            assertThrows(DependencyNotFountException.class, () -> config.getContext().get(ComponentRef.of(TestComponent.class)));
+            assertThrows(ContextConfigError.class, () -> config.getContext().get(ComponentRef.of(TestComponent.class)));
         }
 
         @Test
@@ -298,10 +298,11 @@ class ContextTest {
         @MethodSource
         public void should_throw_exception_if_dependency_not_found(Class<? extends TestComponent> component) {
             config.bind(TestComponent.class, component);
-            DependencyNotFountException exception = assertThrows(DependencyNotFountException.class, () -> config.getContext());
+            ContextConfigError error = assertThrows(ContextConfigError.class, () -> config.getContext());
 
-            assertEquals(Dependency.class, exception.getDependency().type());
-            assertEquals(TestComponent.class, exception.getComponent().type());
+            ContextConfigError.DependencyNotFount dependencyNotFount = assertInstanceOf(ContextConfigError.DependencyNotFount.class, error);
+            assertEquals(Dependency.class, dependencyNotFount.dependency().type());
+            assertEquals(TestComponent.class, dependencyNotFount.component().type());
         }
 
         static Stream<Arguments> should_throw_exception_if_dependency_not_found() {
@@ -369,10 +370,12 @@ class ContextTest {
             config.bind(TestComponent.class, component);
             config.bind(Dependency.class, dependency);
 
-            CyclicDependenciesFoundException exception = assertThrows(CyclicDependenciesFoundException.class, () -> config.getContext());
+            ContextConfigError error = assertThrows(ContextConfigError.class, () -> config.getContext());
 
-            assertEquals(3, exception.getComponents().length);
-            Set<Class<?>> classes = Sets.newSet(exception.getComponents());
+            ContextConfigError.CyclicDependenciesFound configError = assertInstanceOf(ContextConfigError.CyclicDependenciesFound.class, error);
+
+            assertEquals(3, configError.getPath().length);
+            Set<Class<?>> classes = Sets.newSet(configError.getPath());
             assertTrue(classes.containsAll(Arrays.asList(TestComponent.class, Dependency.class)));
         }
 
@@ -430,11 +433,11 @@ class ContextTest {
             config.bind(TestComponent.class, component);
             config.bind(Dependency.class, dependency);
             config.bind(AnotherDependency.class, anotherDependency);
+            ContextConfigError error = assertThrows(ContextConfigError.class, () -> config.getContext());
 
-            CyclicDependenciesFoundException exception = assertThrows(CyclicDependenciesFoundException.class, () -> config.getContext());
-
-            assertEquals(4, exception.getComponents().length);
-            Set<Class<?>> classes = Sets.newSet(exception.getComponents());
+            ContextConfigError.CyclicDependenciesFound configError = assertInstanceOf(ContextConfigError.CyclicDependenciesFound.class, error);
+            assertEquals(4, configError.getPath().length);
+            Set<Class<?>> classes = Sets.newSet(configError.getPath());
             assertTrue(classes.containsAll(Arrays.asList(TestComponent.class, Dependency.class, AnotherDependency.class)));
         }
 
@@ -517,9 +520,11 @@ class ContextTest {
                 config.bind(Dependency.class, new Dependency() {
                 });
                 config.bind(TestComponent.class, component, new NamedLiteral("Owner"));
-                DependencyNotFountException exception = assertThrows(DependencyNotFountException.class, () -> config.getContext());
-                assertEquals(new Component(TestComponent.class, new NamedLiteral("Owner")), exception.getComponent());
-                assertEquals(new Component(Dependency.class, new SkywalkerLiteral()), exception.getDependency());
+                ContextConfigError error = assertThrows(ContextConfigError.class, () -> config.getContext());
+
+                ContextConfigError.DependencyNotFount dependencyNotFount = assertInstanceOf(ContextConfigError.DependencyNotFount.class, error);
+                assertEquals(new Component(TestComponent.class, new NamedLiteral("Owner")), dependencyNotFount.component());
+                assertEquals(new Component(Dependency.class, new SkywalkerLiteral()), dependencyNotFount.dependency());
             }
 
             static Stream<Arguments> should_throw_exception_if_dependency_with_qualifier_not_found() {
