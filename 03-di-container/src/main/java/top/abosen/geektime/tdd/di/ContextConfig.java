@@ -9,6 +9,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.text.MessageFormat;
 import java.util.*;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -27,39 +28,67 @@ public class ContextConfig {
     private Map<Component, ComponentProvider<?>> components = new HashMap<>();
     private Map<Class<?>, ScopeProvider> scopes = new HashMap<>();
 
+    static class Bindings {
+        private @interface Illegal {
+        }
+
+        private final Class<?> type;
+        private final Map<Class<?>, List<Annotation>> group;
+
+        public Bindings(Class<?> type, Annotation... annotations) {
+            this.type = type;
+            this.group = parse(annotations);
+        }
+
+        public List<Annotation> qualifiers() {
+            return group.getOrDefault(Qualifier.class, List.of());
+        }
+
+        Optional<Annotation> scope() {
+            List<Annotation> scopes = group.getOrDefault(Scope.class, scopeFrom(type));
+            if (scopes.size() > 1) {
+                throw new IllegalComponentException();
+            }
+            return scopes.stream().findFirst();
+        }
+
+        private ComponentProvider<?> provider(BiFunction<ComponentProvider<?>, Annotation, ComponentProvider<?>> scoped) {
+            ComponentProvider<?> injectionProvider = new InjectionProvider<>(type);
+            return scope().<ComponentProvider<?>>map(s -> scoped.apply(injectionProvider, s)).orElse(injectionProvider);
+        }
+
+        private static List<Annotation> scopeFrom(Class<?> implementation) {
+            return stream(implementation.getAnnotations()).filter(a -> a.annotationType().isAnnotationPresent(Scope.class)).toList();
+        }
+
+        private static Map<Class<?>, List<Annotation>> parse(Annotation[] annotations) {
+            Map<Class<?>, List<Annotation>> annotationGroup = stream(annotations).collect(Collectors.groupingBy(Bindings::typeOf, Collectors.toList()));
+            if (annotationGroup.containsKey(Illegal.class)) {
+                throw new IllegalComponentException();
+            }
+            return annotationGroup;
+        }
+
+        private static Class<?> typeOf(Annotation annotation) {
+            return Stream.of(Qualifier.class, Scope.class).filter(annotation.annotationType()::isAnnotationPresent).findFirst().orElse(Illegal.class);
+        }
+    }
+
     public <T> void scope(Class<T> scopeType, ScopeProvider provider) {
         scopes.put(scopeType, provider);
     }
 
     public <T, R extends T> void bindComponent(Class<T> type, Class<R> implementation, Annotation... annotations) {
-        Map<Class<?>, List<Annotation>> annotationGroups = Stream.concat(stream(implementation.getAnnotations()), stream(annotations))
-                .collect(Collectors.groupingBy(this::typeOf, Collectors.toList()));
-
-        if (annotationGroups.containsKey(Illegal.class)) {
-            throw new IllegalComponentException();
-        }
-
-        bind(type, annotationGroups.getOrDefault(Qualifier.class, List.of()),
-                createScopeProvider(implementation, annotationGroups.getOrDefault(Scope.class, List.of())));
+        Annotation[] componentAnnotations = Stream.concat(stream(implementation.getAnnotations()), stream(annotations)).toArray(Annotation[]::new);
+        Bindings bindings = new Bindings(implementation, componentAnnotations);
+        bind(type, bindings.qualifiers(), bindings.provider(this::scopeProvider));
     }
 
     public <T> void bindInstance(Class<T> type, T instance, Annotation... annotations) {
-        Map<Class<?>, List<Annotation>> annotationGroups = stream(annotations)
-                .collect(Collectors.groupingBy(this::typeOf, Collectors.toList()));
-
-        if (annotationGroups.containsKey(Illegal.class)) {
-            throw new IllegalComponentException();
-        }
-
-        bind(type, annotationGroups.getOrDefault(Qualifier.class, List.of()), (ComponentProvider<T>) context -> instance);
+        Bindings bindings = new Bindings(type, annotations);
+        bind(type, bindings.qualifiers(), context -> instance);
     }
 
-    private <T, R extends T> ComponentProvider<R> createScopeProvider(Class<R> implementation, List<Annotation> scopes) {
-        if (scopes.size() > 1) throw new IllegalComponentException();
-        ComponentProvider<R> injectionProvider = new InjectionProvider<>(implementation);
-        return scopes.stream().findFirst().or(() -> scopeFromImplementation(implementation))
-                .map(s -> getScopeProvider(s, injectionProvider)).orElse(injectionProvider);
-    }
 
     private <T> void bind(Class<T> type, List<Annotation> qualifiers, ComponentProvider<?> provider) {
         if (qualifiers.isEmpty()) {
@@ -70,8 +99,10 @@ public class ContextConfig {
         }
     }
 
-    private static Optional<Annotation> scopeFromImplementation(Class<?> implementation) {
-        return stream(implementation.getAnnotations()).filter(a -> a.annotationType().isAnnotationPresent(Scope.class)).findFirst();
+
+    private ComponentProvider<?> scopeProvider(ComponentProvider<?> provider, Annotation scope) {
+        if (!scopes.containsKey(scope.annotationType())) throw new IllegalComponentException();
+        return scopes.get(scope.annotationType()).create(provider);
     }
 
     public void from(Config config) {
@@ -130,18 +161,7 @@ public class ContextConfig {
                 return it.annotationType().getEnclosingClass() == Config.class;
             }
         }
-    }
 
-    private @interface Illegal {
-    }
-
-    private Class<?> typeOf(Annotation annotation) {
-        return Stream.of(Qualifier.class, Scope.class).filter(annotation.annotationType()::isAnnotationPresent).findFirst().orElse(Illegal.class);
-    }
-
-    private <T> ComponentProvider<T> getScopeProvider(Annotation scope, ComponentProvider<T> provider) {
-        if (!scopes.containsKey(scope.annotationType())) throw new IllegalComponentException();
-        return (ComponentProvider<T>) scopes.get(scope.annotationType()).create(provider);
     }
 
 
