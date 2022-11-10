@@ -138,6 +138,22 @@ class ContextTest {
             }).isPresent());
         }
 
+        @Test
+        void should_throw_exception_if_bind_duplicate_component_by_instance() {
+            config.bindInstance(TestComponent.class, new TestComponent() {
+            });
+            ContextConfigException exception = assertThrows(ContextConfigException.class, () -> config.bindInstance(TestComponent.class, new TestComponent() {
+            }));
+            assertTrue(exception.getMessage().contains("Duplicate"));
+        }
+
+        @Test
+        void should_throw_exception_if_bind_duplicate_component_by_component() {
+            config.bindComponent(TestComponent.class, ConstructorInjection.class);
+            ContextConfigException exception = assertThrows(ContextConfigException.class, () -> config.bindComponent(TestComponent.class, ConstructorInjection.class));
+            assertTrue(exception.getMessage().contains("Duplicate"));
+        }
+
         @Nested
         class WithQualifier {
             private final TestComponent instance = new TestComponent() {
@@ -180,7 +196,8 @@ class ContextTest {
 
             @Test
             void should_throw_exception_if_illegal_qualifier_given_to_instance() {
-                assertThrows(IllegalComponentException.class, () -> config.bindInstance(TestComponent.class, instance, new TestLiteral()));
+                ContextConfigException exception = assertThrows(ContextConfigException.class, () -> config.bindInstance(TestComponent.class, instance, new TestLiteral()));
+                assertTrue(exception.getMessage().contains("Unqualified annotations"));
             }
 
             @Test
@@ -199,7 +216,8 @@ class ContextTest {
 
             @Test
             void should_throw_exception_if_illegal_qualifier_given_to_component() {
-                assertThrows(IllegalComponentException.class, () -> config.bindComponent(InjectConstructor.class, InjectConstructor.class, new TestLiteral()));
+                ContextConfigException exception = assertThrows(ContextConfigException.class, () -> config.bindComponent(InjectConstructor.class, InjectConstructor.class, new TestLiteral()));
+                assertTrue(exception.getMessage().contains("Unqualified annotations"));
             }
         }
 
@@ -246,7 +264,8 @@ class ContextTest {
 
             @Test
             void should_throw_exception_if_multi_scope_provided() {
-                assertThrows(IllegalComponentException.class, () -> config.bindComponent(NotSingleton.class, NotSingleton.class, new SingletonLiteral(), new PooledLiteral()));
+                ContextConfigException exception = assertThrows(ContextConfigException.class, () -> config.bindComponent(NotSingleton.class, NotSingleton.class, new SingletonLiteral(), new PooledLiteral()));
+                assertTrue(exception.getMessage().contains("Unqualified annotations"));
             }
 
             @Singleton
@@ -257,12 +276,14 @@ class ContextTest {
 
             @Test
             void should_throw_exception_if_multi_scope_annotated() {
-                assertThrows(IllegalComponentException.class, () -> config.bindComponent(MultiScopeAnnotated.class, MultiScopeAnnotated.class));
+                ContextConfigException exception = assertThrows(ContextConfigException.class, () -> config.bindComponent(MultiScopeAnnotated.class, MultiScopeAnnotated.class));
+                assertTrue(exception.getMessage().contains("Unqualified annotations"));
             }
 
             @Test
             void should_throw_exception_if_scope_undefined() {
-                assertThrows(IllegalComponentException.class, () -> config.bindComponent(NotSingleton.class, NotSingleton.class, new PooledLiteral()));
+                ContextConfigException exception = assertThrows(ContextConfigException.class, () -> config.bindComponent(NotSingleton.class, NotSingleton.class, new PooledLiteral()));
+                assertTrue(exception.getMessage().contains("Unknown scope"));
             }
 
             @Nested

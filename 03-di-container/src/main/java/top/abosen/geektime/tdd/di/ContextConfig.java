@@ -15,6 +15,9 @@ import java.util.stream.Stream;
 
 import static java.util.Arrays.stream;
 import static java.util.stream.Collectors.joining;
+import static top.abosen.geektime.tdd.di.ContextConfigError.circularDependencies;
+import static top.abosen.geektime.tdd.di.ContextConfigError.unsatisfiedResolution;
+import static top.abosen.geektime.tdd.di.ContextConfigException.*;
 
 /**
  * @author qiubaisen
@@ -25,8 +28,8 @@ public class ContextConfig {
         scope(Singleton.class, SingletonProvider::new);
     }
 
-    private Map<Component, ComponentProvider<?>> components = new HashMap<>();
-    private Map<Class<?>, ScopeProvider> scopes = new HashMap<>();
+    private final Map<Component, ComponentProvider<?>> components = new HashMap<>();
+    private final Map<Class<?>, ScopeProvider> scopes = new HashMap<>();
 
     static class Bindings {
         private @interface Illegal {
@@ -47,7 +50,7 @@ public class ContextConfig {
         Optional<Annotation> scope() {
             List<Annotation> scopes = group.getOrDefault(Scope.class, scopeFrom(type));
             if (scopes.size() > 1) {
-                throw new IllegalComponentException();
+                throw illegalAnnotation(type, scopes);
             }
             return scopes.stream().findFirst();
         }
@@ -61,10 +64,10 @@ public class ContextConfig {
             return stream(implementation.getAnnotations()).filter(a -> a.annotationType().isAnnotationPresent(Scope.class)).toList();
         }
 
-        private static Map<Class<?>, List<Annotation>> parse(Annotation[] annotations) {
+        private Map<Class<?>, List<Annotation>> parse(Annotation[] annotations) {
             Map<Class<?>, List<Annotation>> annotationGroup = stream(annotations).collect(Collectors.groupingBy(Bindings::typeOf, Collectors.toList()));
             if (annotationGroup.containsKey(Illegal.class)) {
-                throw new IllegalComponentException();
+                throw illegalAnnotation(type, annotationGroup.get(Illegal.class));
             }
             return annotationGroup;
         }
@@ -89,19 +92,19 @@ public class ContextConfig {
         bind(type, bindings.qualifiers(), context -> instance);
     }
 
-
     private <T> void bind(Class<T> type, List<Annotation> qualifiers, ComponentProvider<?> provider) {
-        if (qualifiers.isEmpty()) {
-            components.put(new Component(type, null), provider);
-        }
-        for (Annotation qualifier : qualifiers) {
-            components.put(new Component(type, qualifier), provider);
-        }
+        if (qualifiers.isEmpty()) bind(new Component(type, null), provider);
+        for (Annotation qualifier : qualifiers) bind(new Component(type, qualifier), provider);
+    }
+
+    private ComponentProvider<?> bind(Component component, ComponentProvider<?> provider) {
+        if (components.containsKey(component)) throw duplicated(component);
+        return components.put(component, provider);
     }
 
 
     private ComponentProvider<?> scopeProvider(ComponentProvider<?> provider, Annotation scope) {
-        if (!scopes.containsKey(scope.annotationType())) throw new IllegalComponentException();
+        if (!scopes.containsKey(scope.annotationType())) throw unknownScope(scope.annotationType());
         return scopes.get(scope.annotationType()).create(provider);
     }
 
@@ -180,7 +183,7 @@ public class ContextConfig {
 
             @Override
             public <T> T get(ComponentRef<T> ref) {
-                return getOpt(ref).orElseThrow(() -> ContextConfigError.unsatisfiedResolution(ref.component(), ref.component()));
+                return getOpt(ref).orElseThrow(() -> unsatisfiedResolution(ref.component(), ref.component()));
             }
         };
     }
@@ -192,12 +195,12 @@ public class ContextConfig {
     private void checkDependencies(Component component, Deque<Component> visiting) {
         for (ComponentRef<?> dependency : components.get(component).getDependencies()) {
             if (!components.containsKey(dependency.component())) {
-                throw ContextConfigError.unsatisfiedResolution(component, dependency.component());
+                throw unsatisfiedResolution(component, dependency.component());
             }
             if (!dependency.isContainer()) {
                 if (visiting.contains(dependency.component())) {
                     List<Component> cyclicPath = new ArrayList<>(visiting);
-                    throw ContextConfigError.circularDependencies(cyclicPath, component);
+                    throw circularDependencies(cyclicPath, component);
                 }
                 visiting.addLast(dependency.component());
 
@@ -255,5 +258,24 @@ class ContextConfigError extends Error {
         public Class<?>[] getPath() {
             return Stream.concat(path.stream(), Stream.of(circular)).map(Component::type).toArray(Class[]::new);
         }
+    }
+}
+
+class ContextConfigException extends RuntimeException {
+    static ContextConfigException illegalAnnotation(Class<?> type, List<Annotation> annotations) {
+        return new ContextConfigException(MessageFormat.format("Unqualified annotations: {0} of {1}",
+                String.join(" , ", annotations.stream().map(Objects::toString).toList()), type));
+    }
+
+    static ContextConfigException unknownScope(Class<? extends Annotation> annotationType) {
+        return new ContextConfigException(MessageFormat.format("Unknown scope: {0}", annotationType));
+    }
+
+    static ContextConfigException duplicated(Component component) {
+        return new ContextConfigException(MessageFormat.format("Duplicated: {0}", component));
+    }
+
+    ContextConfigException(String message) {
+        super(message);
     }
 }
