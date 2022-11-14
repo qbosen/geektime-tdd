@@ -7,6 +7,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import top.abosen.geektime.tdd.di.Utils.Dependency;
+import top.abosen.geektime.tdd.di.Utils.NamedLiteral;
+import top.abosen.geektime.tdd.di.Utils.Skywalker;
+import top.abosen.geektime.tdd.di.Utils.TestComponent;
 
 import java.lang.reflect.ParameterizedType;
 
