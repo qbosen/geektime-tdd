@@ -5,13 +5,16 @@ import jakarta.inject.Qualifier;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
+import java.text.MessageFormat;
 import java.util.*;
 import java.util.function.BiFunction;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.stream;
 import static java.util.stream.Stream.concat;
+import static top.abosen.geektime.tdd.di.ComponentError.*;
 
 /**
  * @author qiubaisen
@@ -25,10 +28,6 @@ final class InjectionProvider<T> implements ComponentProvider<T> {
     private final List<ComponentRef<?>> dependencies;
 
     public InjectionProvider(Class<T> component) {
-        if (Modifier.isAbstract(component.getModifiers())) {
-            throw new IllegalComponentException();
-        }
-
         this.injectConstructor = getInjectConstructor(component);
 
         List<Injectable<Method>> methods = getInjectMethods(component);
@@ -38,12 +37,6 @@ final class InjectionProvider<T> implements ComponentProvider<T> {
         this.injectFields = groupByClass(fields);
         this.superClasses = allSuperClass(component);
         this.dependencies = concat(concat(Stream.of(injectConstructor), fields.stream()), methods.stream()).flatMap(it -> stream(it.required())).toList();
-        if (fields.stream().map(Injectable::element).anyMatch(it -> Modifier.isFinal(it.getModifiers()))) {
-            throw new IllegalComponentException();
-        }
-        if (methods.stream().map(Injectable::element).anyMatch(m -> m.getTypeParameters().length != 0)) {
-            throw new IllegalComponentException();
-        }
     }
 
     private static Collection<Class<?>> allSuperClass(Class<?> component) {
@@ -107,36 +100,38 @@ final class InjectionProvider<T> implements ComponentProvider<T> {
         private static Annotation getQualifier(AnnotatedElement parameter) {
             List<Annotation> qualifiers = stream(parameter.getAnnotations()).filter(it -> it.annotationType().isAnnotationPresent(Qualifier.class)).toList();
             if (qualifiers.size() > 1) {
-                throw new IllegalComponentException();
+                throw ambiguousQualifiers(parameter, qualifiers);
             }
             return qualifiers.stream().findFirst().orElse(null);
         }
     }
 
     private static <T> Injectable<Constructor<T>> getInjectConstructor(Class<T> component) {
+        if (Modifier.isAbstract(component.getModifiers())) {
+            throw abstractComponent(component);
+        }
         List<Constructor<?>> injectConstructors = injectable(component.getDeclaredConstructors()).toList();
-
         if (injectConstructors.size() > 1) {
-            throw new IllegalComponentException();
+            throw ambiguousInjectableConstructors(component);
         }
 
         return Injectable.of((Constructor<T>) injectConstructors.stream().findFirst().orElseGet(() -> defaultConstructor(component)));
     }
 
     private static List<Injectable<Field>> getInjectFields(Class<?> component) {
-        List<Field> injectFields = traverse(component, (fields, current) -> injectable(current.getDeclaredFields()).toList());
-        return injectFields.stream().map(Injectable::of).toList();
+        List<Injectable<Field>> injectables = InjectionProvider.<Field>traverse(component, (fields, current) -> injectable(current.getDeclaredFields()).toList()).stream().map(Injectable::of).toList();
+        return check(component, injectables, InjectionProvider::notFinal, ComponentError::finalInjectFields);
     }
 
     private static List<Injectable<Method>> getInjectMethods(Class<?> component) {
-        List<Method> injectMethods = traverse(component, (methods, current) -> injectable(current.getDeclaredMethods())
+
+        List<Injectable<Method>> injectables = InjectionProvider.<Method>traverse(component, (methods, current) -> injectable(current.getDeclaredMethods())
                 .filter(m -> isLeafMethod(component, m))
 //                .filter(m -> notOverrideByInjectMethod(methods, m))
 //                .filter(m -> notOverrideByNoInjectMethod(component, m))
-                .toList());
-        // 父类的inject方法先执行, 但查找是从子类开始的,所以翻转一次
-        Collections.reverse(injectMethods);
-        return injectMethods.stream().map(Injectable::of).toList();
+                .toList()).stream().map(Injectable::of).toList();
+
+        return check(component, injectables, InjectionProvider::noTypeParameter, ComponentError::injectMethodsWithTypeParameter);
     }
 
     @Override
@@ -148,10 +143,16 @@ final class InjectionProvider<T> implements ComponentProvider<T> {
         try {
             return implementation.getDeclaredConstructor();
         } catch (NoSuchMethodException e) {
-            throw new IllegalComponentException();
+            throw noDefaultConstructor(implementation);
         }
     }
 
+    private static <E extends AccessibleObject> List<Injectable<E>> check(
+            Class<?> component, List<Injectable<E>> target, Predicate<E> predicate, BiFunction<Class<?>, List<E>, ComponentError> error) {
+        List<E> found = target.stream().map(Injectable::element).filter(predicate).toList();
+        if (found.size() > 0) throw error.apply(component, found.stream().toList());
+        return target;
+    }
 
     private static <T> List<T> traverse(Class<?> component, BiFunction<List<T>, Class<?>, List<T>> finder) {
         List<T> visited = new ArrayList<>();
@@ -184,9 +185,6 @@ final class InjectionProvider<T> implements ComponentProvider<T> {
         return injectMethods.stream().noneMatch(o -> isOverride(m, o));
     }
 
-    /**
-     * 先不考虑private等问题
-     */
     private static boolean isOverride(Method m, Method o) {
         boolean visible;
         if (m.getDeclaringClass().getPackageName().equals(o.getDeclaringClass().getPackageName())) {
@@ -200,5 +198,49 @@ final class InjectionProvider<T> implements ComponentProvider<T> {
 
     private static <T extends AnnotatedElement> Stream<T> injectable(T[] annotatedElement) {
         return stream(annotatedElement).filter(it -> it.isAnnotationPresent(Inject.class));
+    }
+
+    private static boolean notFinal(Field field) {
+        return Modifier.isFinal(field.getModifiers());
+    }
+
+    private static boolean noTypeParameter(Method method) {
+        return method.getTypeParameters().length != 0;
+    }
+}
+
+class ComponentError extends Error {
+    public static ComponentError abstractComponent(Class<?> component) {
+        return new ComponentError(MessageFormat.format("Can not be abstract: {0}", component));
+    }
+
+    public static ComponentError finalInjectFields(Class<?> component, Collection<Field> fields) {
+        return new ComponentError(MessageFormat.format("Injectable field can not be final: {0} in {1}",
+                String.join(" , ", fields.stream().map(Field::getName).toList()), component));
+    }
+
+    public static ComponentError injectMethodsWithTypeParameter(Class<?> component, Collection<Method> fields) {
+        return new ComponentError(MessageFormat.format("Injectable method can not have type parameter: {0} in {1}",
+                String.join(" , ", fields.stream().map(Method::getName).toList()), component));
+    }
+
+    public static ComponentError ambiguousInjectableConstructors(Class<?> component) {
+        return new ComponentError(MessageFormat.format("Ambiguous injectable constructors: {0}", component));
+    }
+
+    public static ComponentError noDefaultConstructor(Class<?> component) {
+        return new ComponentError(MessageFormat.format("No default constructors: {0}", component));
+    }
+
+    public static ComponentError ambiguousQualifiers(AnnotatedElement element, List<Annotation> qualifiers) {
+        Class<?> component;
+        if (element instanceof Parameter p) component = p.getDeclaringExecutable().getDeclaringClass();
+        else component = ((Field) element).getDeclaringClass();
+        return new ComponentError(MessageFormat.format("Ambiguous qualifiers: {0} on {1} of {2}",
+                String.join(" , ", qualifiers.stream().map(Object::toString).toList()), element, component));
+    }
+
+    ComponentError(String message) {
+        super(message);
     }
 }

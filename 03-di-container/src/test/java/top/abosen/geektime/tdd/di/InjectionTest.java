@@ -127,22 +127,22 @@ public class InjectionTest {
 
             @Test
             void should_throw_exception_if_component_is_abstract() {
-                assertThrows(IllegalComponentException.class, () -> new InjectionProvider<>(AbstractComponent.class));
+                assertThrows(ComponentError.class, () -> new InjectionProvider<>(AbstractComponent.class));
             }
 
             @Test
             void should_throw_exception_if_component_is_interface() {
-                assertThrows(IllegalComponentException.class, () -> new InjectionProvider<>(TestComponent.class));
+                assertThrows(ComponentError.class, () -> new InjectionProvider<>(TestComponent.class));
             }
 
             @Test
             public void should_throw_exception_if_multi_inject_constructors_provided() {
-                assertThrows(IllegalComponentException.class, () -> new InjectionProvider<>(ComponentWithMultiInjectConstructors.class));
+                assertThrows(ComponentError.class, () -> new InjectionProvider<>(ComponentWithMultiInjectConstructors.class));
             }
 
             @Test
             public void should_throw_exception_if_no_inject_nor_default_constructor_provided() {
-                assertThrows(IllegalComponentException.class, () -> new InjectionProvider<>(ComponentWithNoInjectNorDefaultConstructors.class));
+                assertThrows(ComponentError.class, () -> new InjectionProvider<>(ComponentWithNoInjectNorDefaultConstructors.class));
             }
 
         }
@@ -189,7 +189,7 @@ public class InjectionTest {
 
             @Test
             void should_throw_exception_if_multi_qualifiers_given() {
-                assertThrows(IllegalComponentException.class, () -> new InjectionProvider<>(MultiQualifierInjectConstructor.class));
+                assertThrows(ComponentError.class, () -> new InjectionProvider<>(MultiQualifierInjectConstructor.class));
             }
         }
 
@@ -258,7 +258,7 @@ public class InjectionTest {
 
             @Test
             void should_throw_exception_if_inject_field_is_final() {
-                assertThrows(IllegalComponentException.class, () -> new InjectionProvider<>(FinalInjectField.class));
+                assertThrows(ComponentError.class, () -> new InjectionProvider<>(FinalInjectField.class));
             }
         }
 
@@ -301,7 +301,7 @@ public class InjectionTest {
 
             @Test
             void should_throw_exception_if_multi_qualifiers_given() {
-                assertThrows(IllegalComponentException.class, () -> new InjectionProvider<>(MultiQualifierInjectField.class));
+                assertThrows(ComponentError.class, () -> new InjectionProvider<>(MultiQualifierInjectField.class));
             }
         }
     }
@@ -450,7 +450,7 @@ public class InjectionTest {
 
             @Test
             void should_throw_exception_if_inject_method_has_type_parameter() {
-                assertThrows(IllegalComponentException.class, () -> new InjectionProvider<>(InjectMethodWithTypeParameter.class));
+                assertThrows(ComponentError.class, () -> new InjectionProvider<>(InjectMethodWithTypeParameter.class));
             }
         }
 
@@ -495,7 +495,7 @@ public class InjectionTest {
 
             @Test
             void should_throw_exception_if_multi_qualifiers_given() {
-                assertThrows(IllegalComponentException.class, () -> new InjectionProvider<>(MultiQualifierInjectMethod.class));
+                assertThrows(ComponentError.class, () -> new InjectionProvider<>(MultiQualifierInjectMethod.class));
             }
         }
     }
