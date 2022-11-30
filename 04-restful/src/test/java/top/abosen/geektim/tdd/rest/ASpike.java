@@ -8,7 +8,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.Application;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.MultivaluedMap;
@@ -94,17 +96,18 @@ public class ASpike {
         protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
             Stream<Class<?>> rootResources = application.getClasses().stream().filter(c -> c.isAnnotationPresent(Path.class));
 
-            Object result = dispatch(req, rootResources);
+            ResourceContext rc = application.createResourceContext(req, resp);
+            Object result = dispatch(req, rootResources, rc);
 
             MessageBodyWriter<Object> writer = (MessageBodyWriter<Object>) providers.getMessageBodyWriter(result.getClass(), null, null, null);
             writer.writeTo(result, null, null, null, null, null, resp.getOutputStream());
         }
 
         //request scope
-        Object dispatch(HttpServletRequest req, Stream<Class<?>> rootResources) {
+        Object dispatch(HttpServletRequest req, Stream<Class<?>> rootResources, ResourceContext rc) {
             try {
                 Class<?> rootClass = rootResources.findFirst().get();
-                Object rootResource = context.get(ComponentRef.of(rootClass));
+                Object rootResource = rc.initResource(context.get(ComponentRef.of(rootClass)));
                 Method method = Arrays.stream(rootClass.getMethods()).filter(m -> m.isAnnotationPresent(GET.class)).findFirst().get();
 
                 return method.invoke(rootResource);
@@ -170,6 +173,7 @@ public class ASpike {
 
     static class TestApplication extends Application {
         Context context;
+
         @Override
         public Set<Class<?>> getClasses() {
             return Set.of(TestResource.class, StringMessageBodyWriter.class);
@@ -182,7 +186,7 @@ public class ASpike {
             };
         }
 
-        public Context getContext(){
+        public Context getContext() {
             return context;
         }
 
@@ -202,6 +206,20 @@ public class ASpike {
 
             context = config.getContext();
         }
+
+        public ResourceContext createResourceContext(HttpServletRequest req, HttpServletResponse resp) {
+            return new ResourceContext() {
+                @Override
+                public <T> T getResource(Class<T> resourceClass) {
+                    return null;
+                }
+
+                @Override
+                public <T> T initResource(T resource) {
+                    return null;
+                }
+            };
+        }
     }
 
     @Path("/test")
@@ -209,6 +227,9 @@ public class ASpike {
         @Inject
         @Named("prefix")
         String prefix;
+
+        @QueryParam("q")
+        String q;
 
         @GET
         public String get() {
