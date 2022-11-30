@@ -10,11 +10,12 @@ import java.lang.reflect.Field;
 import java.text.MessageFormat;
 import java.util.*;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.stream;
-import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.*;
 import static top.abosen.geektime.tdd.di.ContextConfigError.circularDependencies;
 import static top.abosen.geektime.tdd.di.ContextConfigError.unsatisfiedResolution;
 import static top.abosen.geektime.tdd.di.ContextConfigException.*;
@@ -32,15 +33,23 @@ public class ContextConfig {
     private final Map<Class<?>, ScopeProvider> scopes = new HashMap<>();
 
     static class Bindings {
+        public static Bindings component(Class<?> component, Annotation... annotations) {
+            return new Bindings(component, annotations, Qualifier.class, Scope.class);
+        }
+
+        public static Bindings instance(Class<?> instance, Annotation... annotations) {
+            return new Bindings(instance, annotations, Qualifier.class);
+        }
+
         private @interface Illegal {
         }
 
         private final Class<?> type;
         private final Map<Class<?>, List<Annotation>> group;
 
-        public Bindings(Class<?> type, Annotation... annotations) {
+        public Bindings(Class<?> type, Annotation[] annotations, Class<? extends Annotation>... allowed) {
             this.type = type;
-            this.group = parse(annotations);
+            this.group = parse(type, annotations, allowed);
         }
 
         public List<Annotation> qualifiers() {
@@ -48,7 +57,7 @@ public class ContextConfig {
         }
 
         Optional<Annotation> scope() {
-            List<Annotation> scopes = group.getOrDefault(Scope.class, scopeFrom(type));
+            List<Annotation> scopes = group.getOrDefault(Scope.class, from(type, Scope.class));
             if (scopes.size() > 1) {
                 throw illegalAnnotation(type, scopes);
             }
@@ -60,20 +69,20 @@ public class ContextConfig {
             return scope().<ComponentProvider<?>>map(s -> scoped.apply(injectionProvider, s)).orElse(injectionProvider);
         }
 
-        private static List<Annotation> scopeFrom(Class<?> implementation) {
-            return stream(implementation.getAnnotations()).filter(a -> a.annotationType().isAnnotationPresent(Scope.class)).toList();
+        private static List<Annotation> from(Class<?> implementation, Class<? extends Annotation> annotation) {
+            return stream(implementation.getAnnotations()).filter(a -> a.annotationType().isAnnotationPresent(annotation)).toList();
         }
 
-        private Map<Class<?>, List<Annotation>> parse(Annotation[] annotations) {
-            Map<Class<?>, List<Annotation>> annotationGroup = stream(annotations).collect(Collectors.groupingBy(Bindings::typeOf, Collectors.toList()));
+        private Map<Class<?>, List<Annotation>> parse(Class<?> type, Annotation[] annotations, Class<? extends Annotation>... allowed) {
+            Map<Class<?>, List<Annotation>> annotationGroup = stream(annotations).collect(groupingBy(allow(allowed), toList()));
             if (annotationGroup.containsKey(Illegal.class)) {
                 throw illegalAnnotation(type, annotationGroup.get(Illegal.class));
             }
             return annotationGroup;
         }
 
-        private static Class<?> typeOf(Annotation annotation) {
-            return Stream.of(Qualifier.class, Scope.class).filter(annotation.annotationType()::isAnnotationPresent).findFirst().orElse(Illegal.class);
+        private static Function<Annotation, Class<?>> allow(Class<? extends Annotation>... allowed) {
+            return annotation -> Stream.of(allowed).filter(annotation.annotationType()::isAnnotationPresent).findFirst().orElse(Illegal.class);
         }
     }
 
@@ -82,13 +91,12 @@ public class ContextConfig {
     }
 
     public <T, R extends T> void bindComponent(Class<T> type, Class<R> implementation, Annotation... annotations) {
-        Annotation[] componentAnnotations = Stream.concat(stream(implementation.getAnnotations()), stream(annotations)).toArray(Annotation[]::new);
-        Bindings bindings = new Bindings(implementation, componentAnnotations);
+        Bindings bindings = Bindings.component(implementation, annotations);
         bind(type, bindings.qualifiers(), bindings.provider(this::scopeProvider));
     }
 
     public <T> void bindInstance(Class<T> type, T instance, Annotation... annotations) {
-        Bindings bindings = new Bindings(type, annotations);
+        Bindings bindings = Bindings.instance(type, annotations);
         bind(type, bindings.qualifiers(), context -> instance);
     }
 
@@ -145,6 +153,7 @@ public class ContextConfig {
 
             private Optional<Object> value() {
                 try {
+                    field.setAccessible(true);
                     return Optional.ofNullable(field.get(config));
                 } catch (IllegalAccessException e) {
                     throw new RuntimeException(e);

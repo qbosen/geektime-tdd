@@ -760,15 +760,13 @@ class ContextTest {
         }
 
         @Test
-        void should_bind_instance_with_scope() {
+        void should_throw_exception_if_bind_instance_with_scope() {
             Implementation instance = new Implementation();
-            config.from(new Config() {
+            ContextConfigException exception = assertThrows(ContextConfigException.class, () -> config.from(new Config() {
                 @Singleton
                 Api implementation = instance;
-            });
-
-            Context context = config.getContext();
-            assertSame(context.get(ComponentRef.of(Api.class)), context.get(ComponentRef.of(Api.class)));
+            }));
+            assertTrue(exception.getMessage().contains("Unqualified annotations"));
         }
 
         @Test
