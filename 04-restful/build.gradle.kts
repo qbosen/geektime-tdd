@@ -20,6 +20,8 @@ dependencies {
     implementation("org.glassfish.jersey.inject:jersey-hk2:3.1.0")
     implementation("org.glassfish.jersey.media:jersey-media-json-jackson:3.1.0")
 
+    implementation("org.eclipse.jetty:jetty-servlet:11.0.12")
+
     testImplementation("org.glassfish.jersey.core:jersey-client:3.1.0")
     testImplementation("org.junit.jupiter:junit-jupiter:5.9.0")
     testImplementation("org.mockito:mockito-core:4.8.0")
