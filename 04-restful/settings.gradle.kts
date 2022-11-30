@@ -1,1 +1,1 @@
-rootProject.name = "04-restful"
+rootProject.name = "restful"

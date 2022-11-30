@@ -93,6 +93,7 @@ public class ASpike {
             writer.writeTo(result, null, null, null, null, null, resp.getOutputStream());
         }
 
+        //request scope
         Object dispatch(HttpServletRequest req, Stream<Class<?>> rootResources) {
             try {
                 Class<?> rootClass = rootResources.findFirst().get();
@@ -116,6 +117,7 @@ public class ASpike {
         }
     }
 
+    //application scope
     static class TestProviders implements Providers {
         private final List<MessageBodyWriter> writers;
 

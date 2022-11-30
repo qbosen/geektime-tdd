@@ -22,6 +22,8 @@ dependencies {
 
     implementation("org.eclipse.jetty:jetty-servlet:11.0.12")
 
+    implementation("top.abosen.geektime.tdd:container:1.0-SNAPSHOT")
+
     testImplementation("org.glassfish.jersey.core:jersey-client:3.1.0")
     testImplementation("org.junit.jupiter:junit-jupiter:5.9.0")
     testImplementation("org.mockito:mockito-core:4.8.0")
