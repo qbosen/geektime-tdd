@@ -20,6 +20,9 @@ dependencies {
 
     implementation("top.abosen.geektime.tdd:container:1.0-SNAPSHOT")
 
+    implementation("org.slf4j:slf4j-api:2.0.5")
+    implementation("org.slf4j:slf4j-simple:2.0.5")
+
     testImplementation("org.junit.jupiter:junit-jupiter:5.9.0")
     testImplementation("org.mockito:mockito-core:4.8.0")
 }
