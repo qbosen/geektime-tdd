@@ -17,6 +17,7 @@ import java.io.PrintWriter;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.net.http.HttpResponse;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -122,8 +123,49 @@ public class ResourceServletTest extends ServletTest {
         assertEquals(Response.Status.FORBIDDEN.getStatusCode(), httpResponse.statusCode());
     }
 
+    //DONE: entity is null, ignore MessageBodyWriter
+    @Test
+    void should_not_call_message_body_writer_if_entity_is_null() throws Exception {
+        response.entity(null, new Annotation[0]).returnFrom(router);
+        HttpResponse<String> httpResponse = get("/test");
+        assertEquals(Response.Status.OK.getStatusCode(), httpResponse.statusCode());
+        assertEquals("", httpResponse.body());
+    }
+
     //TODO: 500 if MessageBodyWriter not found
-    //TODO: entity is null, ignore MessageBodyWriter
+    //TODO: 500 if header delegate
+    //TODO: 500 if exception mapper
+    //TODO exception mapper
+    @Test
+    void should_use_response_from_web_application_exception_thrown_by_exception_mapper() throws Exception {
+        when(router.dispatch(any(), eq(resourceContext))).thenThrow(RuntimeException.class);
+        when(providers.getExceptionMapper(RuntimeException.class)).thenReturn(exception -> {
+            throw new WebApplicationException(response.status(Response.Status.FORBIDDEN).build());
+        });
+
+        HttpResponse<String> httpResponse = get("/test");
+        assertEquals(Response.Status.FORBIDDEN.getStatusCode(), httpResponse.statusCode());
+    }
+
+    @Test
+    void should_map_exception_thrown_by_exception_mapper() throws Exception {
+        when(router.dispatch(any(), eq(resourceContext))).thenThrow(RuntimeException.class);
+        when(providers.getExceptionMapper(RuntimeException.class)).thenReturn(exception -> {
+            throw new IllegalArgumentException();
+        });
+        when(providers.getExceptionMapper(IllegalArgumentException.class)).thenReturn(exception -> {
+            throw new WebApplicationException(response.status(Response.Status.FORBIDDEN).build());
+        });
+
+        HttpResponse<String> httpResponse = get("/test");
+        assertEquals(Response.Status.FORBIDDEN.getStatusCode(), httpResponse.statusCode());
+    }
+    //todo providers gets exception mapper
+    //todo runtime delegate
+    //todo header delegate
+    //todo providers gets message body writer
+    //todo message body writer write
+
     class OutboundResponseBuilder {
         private Response.Status status = Response.Status.OK;
         private MultivaluedMap<String, Object> headers = new MultivaluedHashMap<>();
@@ -169,6 +211,7 @@ public class ResourceServletTest extends ServletTest {
         }
 
         private void stubMessageBodyWriter() {
+            if (Objects.isNull(entity)) return;
             Mockito.<MessageBodyWriter<?>>when(providers.getMessageBodyWriter(eq(entity.getRawType()), eq(entity.getType()), same(annotations), eq(mediaType)))
                     .thenReturn(new MessageBodyWriter<String>() {
                         @Override
