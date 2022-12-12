@@ -7,6 +7,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.GenericEntity;
 import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.ext.ExceptionMapper;
 import jakarta.ws.rs.ext.MessageBodyWriter;
 import jakarta.ws.rs.ext.Providers;
 import jakarta.ws.rs.ext.RuntimeDelegate;
@@ -35,6 +37,9 @@ public class ResourceServlet extends HttpServlet {
             response = router.dispatch(req, runtime.createResourceContext(req, resp));
         } catch (WebApplicationException e) {
             response = ((OutboundResponse) e.getResponse());
+        } catch (Throwable throwable) {
+            ExceptionMapper exceptionMapper = providers.getExceptionMapper(throwable.getClass());
+            response = (OutboundResponse) exceptionMapper.toResponse(throwable);
         }
         resp.setStatus(response.getStatus());
 

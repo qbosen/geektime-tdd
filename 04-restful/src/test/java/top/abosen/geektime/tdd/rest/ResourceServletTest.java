@@ -112,10 +112,18 @@ public class ResourceServletTest extends ServletTest {
                 httpResponse.headers().allValues(HttpHeaders.SET_COOKIE).toArray(String[]::new));
         assertEquals("error", httpResponse.body());
     }
-//TODO: throw WebApplicationException with null response, use ExceptionMapper build response
-//TODO: throw other exception, use ExceptionMapper build response
+
+    //DONE: throw other exception, use ExceptionMapper build response
+    @Test
+    void should_build_response_by_exception_mapper_if_null_response_from_web_application_exception() throws Exception {
+        when(router.dispatch(any(), eq(resourceContext))).thenThrow(RuntimeException.class);
+        when(providers.getExceptionMapper(RuntimeException.class)).thenReturn(exception -> response.status(Response.Status.FORBIDDEN).build());
+        HttpResponse<String> httpResponse = get("/test");
+        assertEquals(Response.Status.FORBIDDEN.getStatusCode(), httpResponse.statusCode());
+    }
 
     //TODO: 500 if MessageBodyWriter not found
+    //TODO: entity is null, ignore MessageBodyWriter
     class OutboundResponseBuilder {
         private Response.Status status = Response.Status.OK;
         private MultivaluedMap<String, Object> headers = new MultivaluedHashMap<>();
@@ -156,17 +164,11 @@ public class ResourceServletTest extends ServletTest {
         }
 
         void build(Consumer<OutboundResponse> consumer) {
-            OutboundResponse response = mock(OutboundResponse.class);
-            when(response.getStatus()).thenReturn(status.getStatusCode());
-            when(response.getStatusInfo()).thenReturn(status);
-            when(response.getGenericEntity()).thenReturn(entity);
-            when(response.getAnnotations()).thenReturn(annotations);
-            when(response.getMediaType()).thenReturn(mediaType);
-            when(response.getHeaders()).thenReturn(headers);
-
-
+            OutboundResponse response = build();
             consumer.accept(response);
+        }
 
+        private void stubMessageBodyWriter() {
             Mockito.<MessageBodyWriter<?>>when(providers.getMessageBodyWriter(eq(entity.getRawType()), eq(entity.getType()), same(annotations), eq(mediaType)))
                     .thenReturn(new MessageBodyWriter<String>() {
                         @Override
@@ -181,7 +183,19 @@ public class ResourceServletTest extends ServletTest {
                             writer.flush();
                         }
                     });
+        }
 
+        private OutboundResponse build() {
+            OutboundResponse response = mock(OutboundResponse.class);
+            when(response.getStatus()).thenReturn(status.getStatusCode());
+            when(response.getStatusInfo()).thenReturn(status);
+            when(response.getGenericEntity()).thenReturn(entity);
+            when(response.getAnnotations()).thenReturn(annotations);
+            when(response.getMediaType()).thenReturn(mediaType);
+            when(response.getHeaders()).thenReturn(headers);
+
+            stubMessageBodyWriter();
+            return response;
         }
     }
 }
