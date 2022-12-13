@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.GenericEntity;
 import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.ExceptionMapper;
 import jakarta.ws.rs.ext.MessageBodyWriter;
 import jakarta.ws.rs.ext.Providers;
@@ -22,7 +23,7 @@ import java.util.function.Supplier;
 public class ResourceServlet extends HttpServlet {
 
     private final Runtime runtime;
-    private Providers providers;
+    private final Providers providers;
 
     public ResourceServlet(Runtime runtime) {
         this.runtime = runtime;
@@ -32,7 +33,6 @@ public class ResourceServlet extends HttpServlet {
     @Override
     protected void service(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         ResourceRouter router = runtime.getResourceRouter();
-
         respond(resp, () -> router.dispatch(req, runtime.createResourceContext(req, resp)));
     }
 
@@ -65,7 +65,6 @@ public class ResourceServlet extends HttpServlet {
 
     private OutboundResponse from(Throwable throwable) {
         ExceptionMapper exceptionMapper = providers.getExceptionMapper(throwable.getClass());
-        // nullable
         return (OutboundResponse) exceptionMapper.toResponse(throwable);
     }
 }
