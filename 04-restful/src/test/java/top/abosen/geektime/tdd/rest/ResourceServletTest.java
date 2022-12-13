@@ -8,8 +8,9 @@ import jakarta.ws.rs.ext.MessageBodyWriter;
 import jakarta.ws.rs.ext.Providers;
 import jakarta.ws.rs.ext.RuntimeDelegate;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestFactory;
 import org.mockito.Mockito;
 
 import java.io.IOException;
@@ -18,6 +19,9 @@ import java.io.PrintWriter;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.net.http.HttpResponse;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -72,7 +76,7 @@ public class ResourceServletTest extends ServletTest {
 
     //DONE: use status code as http status
     @Test
-    void should_use_status_from_response() throws Exception {
+    void should_use_status_from_response() {
         response().status(Response.Status.NOT_MODIFIED).returnFrom(router);
 
         HttpResponse<String> httpResponse = get("/test");
@@ -81,7 +85,7 @@ public class ResourceServletTest extends ServletTest {
 
     //DONE: use headers as http headers
     @Test
-    void should_use_http_headers_from_response() throws Exception {
+    void should_use_http_headers_from_response() {
         response().headers(HttpHeaders.SET_COOKIE, new NewCookie.Builder("SESSION_ID").value("session").build(), new NewCookie.Builder("USER_ID").value("user").build())
                 .status(Response.Status.NOT_MODIFIED)
                 .returnFrom(router);
@@ -93,7 +97,7 @@ public class ResourceServletTest extends ServletTest {
 
     //DONE: writer body using MessageBodyWriter
     @Test
-    void should_write_entity_to_http_response_using_message_body_writer() throws Exception {
+    void should_write_entity_to_http_response_using_message_body_writer() {
         response().returnFrom(router);
         HttpResponse<String> httpResponse = get("/test");
         assertEquals("entity", httpResponse.body());
@@ -101,7 +105,7 @@ public class ResourceServletTest extends ServletTest {
 
     //DONE: throw WebApplicationException with response, use response
     @Test
-    void should_use_response_from_web_application_exception() throws Exception {
+    void should_use_response_from_web_application_exception() {
         response().status(Response.Status.FORBIDDEN)
                 .headers(HttpHeaders.SET_COOKIE, new NewCookie.Builder("SESSION_ID").value("session").build())
                 .entity(new GenericEntity<>("error", String.class), new Annotation[0])
@@ -115,7 +119,7 @@ public class ResourceServletTest extends ServletTest {
 
     //DONE: throw other exception, use ExceptionMapper build response
     @Test
-    void should_build_response_by_exception_mapper_if_null_response_from_web_application_exception() throws Exception {
+    void should_build_response_by_exception_mapper_if_null_response_from_web_application_exception() {
         when(router.dispatch(any(), eq(resourceContext))).thenThrow(RuntimeException.class);
         when(providers.getExceptionMapper(RuntimeException.class)).thenReturn(exception -> response().status(Response.Status.FORBIDDEN).build());
         HttpResponse<String> httpResponse = get("/test");
@@ -124,7 +128,7 @@ public class ResourceServletTest extends ServletTest {
 
     //DONE: entity is null, ignore MessageBodyWriter
     @Test
-    void should_not_call_message_body_writer_if_entity_is_null() throws Exception {
+    void should_not_call_message_body_writer_if_entity_is_null() {
         response().entity(null, new Annotation[0]).returnFrom(router);
         HttpResponse<String> httpResponse = get("/test");
         assertEquals(Response.Status.OK.getStatusCode(), httpResponse.statusCode());
@@ -136,7 +140,7 @@ public class ResourceServletTest extends ServletTest {
     //TODO: 500 if exception mapper
     //TODO exception mapper
     @Test
-    void should_use_response_from_web_application_exception_thrown_by_exception_mapper() throws Exception {
+    void should_use_response_from_web_application_exception_thrown_by_exception_mapper() {
         when(router.dispatch(any(), eq(resourceContext))).thenThrow(RuntimeException.class);
         when(providers.getExceptionMapper(RuntimeException.class)).thenReturn(exception -> {
             throw new WebApplicationException(response().status(Response.Status.FORBIDDEN).build());
@@ -147,7 +151,7 @@ public class ResourceServletTest extends ServletTest {
     }
 
     @Test
-    void should_map_exception_thrown_by_exception_mapper() throws Exception {
+    void should_map_exception_thrown_by_exception_mapper() {
         when(router.dispatch(any(), eq(resourceContext))).thenThrow(RuntimeException.class);
         when(providers.getExceptionMapper(RuntimeException.class)).thenReturn(exception -> {
             throw new IllegalArgumentException();
@@ -160,27 +164,24 @@ public class ResourceServletTest extends ServletTest {
         assertEquals(Response.Status.FORBIDDEN.getStatusCode(), httpResponse.statusCode());
     }
 
-    @Test
-    void should_use_response_from_web_application_exception_thrown_by_providers_when_find_message_body_writer() throws Exception {
-        webApplicationExceptionThrownFrom(this::providers_getMessageBodyWriter);
+    @TestFactory
+    List<DynamicTest> should_respond_based_on_exception_thrown() {
+        List<DynamicTest> tests = new ArrayList<>();
+
+        Map<String, Consumer<Consumer<RuntimeException>>> exceptions = Map.of("Other exception", this::otherExceptionThrownFrom, "WebApplicationException", this::webApplicationExceptionThrownFrom);
+        Map<String, Consumer<RuntimeException>> callers = Map.of("Providers.getMessageBodyWriter", this::providers_getMessageBodyWriter, "MessageBodyWriter.writeTo", this::messageBodyWriter_writeTo);
+
+        for (Map.Entry<String, Consumer<RuntimeException>> caller : callers.entrySet()) {
+            for (Map.Entry<String, Consumer<Consumer<RuntimeException>>> exceptionThrownFrom : exceptions.entrySet()) {
+                tests.add(DynamicTest.dynamicTest(caller.getKey() + " throws " + exceptionThrownFrom.getKey(),
+                        () -> exceptionThrownFrom.getValue().accept(caller.getValue())));
+            }
+        }
+
+        return tests;
     }
 
-    @Test
-    void should_use_response_from_web_application_exception_thrown_by_message_body_writer() throws Exception {
-        webApplicationExceptionThrownFrom(this::messageBodyWriter_writeTo);
-    }
-
-    @Test
-    void should_map_exception_thrown_by_providers_when_find_message_body_writer() throws Exception {
-        otherExceptionThrownFrom(this::providers_getMessageBodyWriter);
-    }
-
-    @Test
-    void should_map_exception_thrown_by_message_body_writer() throws Exception {
-        otherExceptionThrownFrom(this::messageBodyWriter_writeTo);
-    }
-
-    private void otherExceptionThrownFrom(Consumer<RuntimeException> caller) throws Exception {
+    private void otherExceptionThrownFrom(Consumer<RuntimeException> caller) {
         RuntimeException exception = new IllegalArgumentException();
         caller.accept(exception);
         when(providers.getExceptionMapper(eq(IllegalArgumentException.class))).thenReturn(e -> response().status(Response.Status.FORBIDDEN).build());
@@ -188,7 +189,7 @@ public class ResourceServletTest extends ServletTest {
         assertEquals(Response.Status.FORBIDDEN.getStatusCode(), httpResponse.statusCode());
     }
 
-    private void webApplicationExceptionThrownFrom(Consumer<RuntimeException> caller) throws Exception {
+    private void webApplicationExceptionThrownFrom(Consumer<RuntimeException> caller) {
         RuntimeException exception = new WebApplicationException(response().status(Response.Status.FORBIDDEN).build());
         caller.accept(exception);
         HttpResponse<String> httpResponse = get("/test");
