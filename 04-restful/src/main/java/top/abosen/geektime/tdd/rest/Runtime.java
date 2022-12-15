@@ -18,4 +18,6 @@ public interface Runtime {
     Context getApplicationContext();
 
     ResourceRouter getResourceRouter();
+
+    // UriInfoBuilder createUriInfoBuilder();
 }

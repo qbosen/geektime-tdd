@@ -28,10 +28,12 @@ import static org.mockito.Mockito.when;
  */
 public class ResourceDispatcherTest {
     private RuntimeDelegate delegate;
+    private Runtime runtime;
 
     @BeforeEach
     void before() {
         delegate = mock(RuntimeDelegate.class);
+        runtime = mock(Runtime.class);
         RuntimeDelegate.setInstance(delegate);
         when(delegate.createResponseBuilder()).thenReturn(new Response.ResponseBuilder() {
 
@@ -198,7 +200,7 @@ public class ResourceDispatcherTest {
         when(request.getServletPath()).thenReturn("/users");
         when(context.getResource(eq(Users.class))).thenReturn(new Users());
 
-        Router router = new Router(Users.class);
+        Router router = new Router(runtime, List.of(new ResourceClass(Users.class)));
 
         OutboundResponse response = router.dispatch(request, context);
         GenericEntity<String> entity = response.getGenericEntity();
@@ -206,30 +208,94 @@ public class ResourceDispatcherTest {
     }
 
     static class Router implements ResourceRouter {
-        private Map<Pattern, Class<?>> routerTable = new HashMap<>();
 
-        public Router(Class<Users> rootResource) {
-            Path path = rootResource.getAnnotation(Path.class);
-            routerTable.put(Pattern.compile(path.value() + "(/.*)?"), rootResource);
+        private final List<Resource> rootResource;
+        private Runtime runtime;
+
+        public Router(Runtime runtime, List<Resource> rootResources) {
+            this.runtime = runtime;
+            this.rootResource = rootResources;
         }
 
         @Override
         public OutboundResponse dispatch(HttpServletRequest request, ResourceContext resourceContext) {
-            String path = request.getServletPath();
+//            UriInfoBuilder builder = runtime.createUriInfoBuilder();
+            ResourceMethod resourceMethod = rootResource.stream().map(root -> root.matches(request.getServletPath(), new String[0], null))
+                    .filter(it -> it.isPresent()).findFirst().get().get();
 
-            Pattern matched = routerTable.keySet().stream().filter(pattern -> pattern.matcher(path).matches()).findFirst().get();
-            Class<?> resource = routerTable.get(matched);
-
-            Method method = Arrays.stream(resource.getMethods()).filter(m -> m.isAnnotationPresent(GET.class)).findFirst().get();
-            Object object = resourceContext.getResource(resource);
             try {
-                Object result = method.invoke(object);
-                GenericEntity entity = new GenericEntity(result, method.getGenericReturnType());
+                GenericEntity entity = resourceMethod.call(resourceContext, null);
                 return (OutboundResponse) Response.ok(entity).build();
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         }
+    }
+
+    static class ResourceClass implements Resource {
+        private final String path;
+        private final Pattern pattern;
+        private final Class<?> resourceClass;
+        private final Map<UriTemplate, ResourceMethod> methods = new HashMap<>();
+
+
+        record UriTemplate(Pattern uri, String[] mediaType) {
+
+        }
+
+        public ResourceClass(Class<?> resourceClass) {
+            this.resourceClass = resourceClass;
+            this.path = resourceClass.getAnnotation(Path.class).value();
+            this.pattern = Pattern.compile(path + "(/.*)?");
+            Arrays.stream(resourceClass.getMethods()).filter(m -> m.isAnnotationPresent(GET.class)).forEach(method ->
+                    methods.put(new UriTemplate(pattern, Optional.ofNullable(method.getAnnotation(Produces.class))
+                                    .map(Produces::value).orElseGet(() -> new String[0]))
+                            , new NormalResourceMethod(resourceClass, method))
+            );
+
+        }
+
+        @Override
+        public Optional<ResourceMethod> matches(String path, String[] mediaType, UriInfoBuilder builder) {
+            if (!pattern.matcher(path).matches()) return Optional.empty();
+            return methods.entrySet().stream().filter(e -> e.getKey().uri.matcher(path).matches())
+                    .map(e -> e.getValue()).findFirst();
+        }
+    }
+
+    static class NormalResourceMethod implements ResourceMethod {
+
+        private final Class<?> resourceClass;
+        private final Method method;
+
+        public NormalResourceMethod(Class<?> resourceClass, Method method) {
+            this.resourceClass = resourceClass;
+            this.method = method;
+        }
+
+        @Override
+        public GenericEntity<?> call(ResourceContext resourceContext, UriInfoBuilder builder) {
+            Object resource = resourceContext.getResource(resourceClass);
+            try {
+                return new GenericEntity(method.invoke(resource), method.getGenericReturnType());
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    interface Resource {
+        Optional<ResourceMethod> matches(String path, String[] mediaType, UriInfoBuilder builder);
+    }
+
+    interface ResourceMethod {
+        GenericEntity<?> call(ResourceContext resourceContext, UriInfoBuilder builder);
+    }
+
+    public interface UriInfoBuilder {
+        void pushMatchedPath(String path);
+
+        void addParameter(String name, String value);
     }
 
     @Path("/users")
