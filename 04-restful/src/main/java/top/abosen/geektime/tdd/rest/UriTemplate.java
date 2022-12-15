@@ -10,7 +10,7 @@ import java.util.Optional;
  * @date 2022/12/15
  */
 interface UriTemplate {
-    @Path(("/{id}")) // /1/orders
+    // @Path(("/{id}")) // /1/orders
     interface MatchResult extends Comparable<MatchResult> {
         String getMatchedPath();    // /1
 
