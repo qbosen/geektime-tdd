@@ -207,6 +207,19 @@ public class ResourceDispatcherTest {
         assertEquals("all", entity.getEntity());
     }
 
+    interface UriTemplate {
+        @Path(("/{id}")) // /1/orders
+        interface MatchResult extends Comparable<MatchResult> {
+            String getMatchedPath();    // /1
+
+            String getRemaining(); // orders
+
+            Map<String, String> getMatchedPathParameters();     //{id:1}
+        }
+
+        Optional<MatchResult> match(String path);
+    }
+
     static class Router implements ResourceRouter {
 
         private final List<Resource> rootResource;
@@ -220,7 +233,7 @@ public class ResourceDispatcherTest {
         @Override
         public OutboundResponse dispatch(HttpServletRequest request, ResourceContext resourceContext) {
 //            UriInfoBuilder builder = runtime.createUriInfoBuilder();
-            ResourceMethod resourceMethod = rootResource.stream().map(root -> root.matches(request.getServletPath(), new String[0], null))
+            ResourceMethod resourceMethod = rootResource.stream().map(root -> root.matches(request.getServletPath(), "GET", new String[0], null))
                     .filter(it -> it.isPresent()).findFirst().get().get();
 
             try {
@@ -232,7 +245,7 @@ public class ResourceDispatcherTest {
         }
     }
 
-    static class ResourceClass implements Resource {
+    static class ResourceClass implements RootResource {
         private final String path;
         private final Pattern pattern;
         private final Class<?> resourceClass;
@@ -241,6 +254,11 @@ public class ResourceDispatcherTest {
 
         record UriTemplate(Pattern uri, String[] mediaType) {
 
+        }
+
+        @Override
+        public ResourceDispatcherTest.UriTemplate getUriTemplate() {
+            return null;
         }
 
         public ResourceClass(Class<?> resourceClass) {
@@ -263,10 +281,11 @@ public class ResourceDispatcherTest {
                     }
             );
 
+
         }
 
         @Override
-        public Optional<ResourceMethod> matches(String path, String[] mediaType, UriInfoBuilder builder) {
+        public Optional<ResourceMethod> matches(String path, String method, String[] mediaType, UriInfoBuilder builder) {
             if (!pattern.matcher(path).matches()) return Optional.empty();
             return methods.entrySet().stream().filter(e -> e.getKey().uri.matcher(path).matches())
                     .map(e -> e.getValue()).findFirst();
@@ -311,7 +330,7 @@ public class ResourceDispatcherTest {
             try {
                 Object subResource = method.invoke(resource);
 
-                return new SubResource(subResource).matches(builder.getUnmatchedPath(), mediaTypes, builder)
+                return new SubResource(subResource).matches(builder.getUnmatchedPath(), "GET", mediaTypes, builder)
                         .get().call(resourceContext, builder);
             } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -330,14 +349,18 @@ public class ResourceDispatcherTest {
         }
 
         @Override
-        public Optional<ResourceMethod> matches(String path, String[] mediaType, UriInfoBuilder builder) {
+        public Optional<ResourceMethod> matches(String path, String method, String[] mediaType, UriInfoBuilder builder) {
             return Optional.empty();
         }
     }
 
 
     interface Resource {
-        Optional<ResourceMethod> matches(String path, String[] mediaType, UriInfoBuilder builder);
+        Optional<ResourceMethod> matches(String path, String method, String[] mediaType, UriInfoBuilder builder);
+    }
+
+    interface RootResource extends Resource {
+        UriTemplate getUriTemplate();
     }
 
     interface ResourceMethod {
