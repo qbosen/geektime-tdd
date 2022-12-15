@@ -7,7 +7,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.GenericEntity;
 import jakarta.ws.rs.core.MultivaluedMap;
-import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.ExceptionMapper;
 import jakarta.ws.rs.ext.MessageBodyWriter;
 import jakarta.ws.rs.ext.Providers;
@@ -48,18 +47,23 @@ public class ResourceServlet extends HttpServlet {
 
     private void respond(HttpServletResponse resp, OutboundResponse response) throws IOException {
         resp.setStatus(response.getStatus());
+        headers(resp, response);
+        body(resp, response, response.getGenericEntity());
+    }
 
+    private void body(HttpServletResponse resp, OutboundResponse response, GenericEntity entity) throws IOException {
+        if (entity == null) return;
+        MessageBodyWriter writer = providers.getMessageBodyWriter(entity.getRawType(), entity.getType(), response.getAnnotations(), response.getMediaType());
+        writer.writeTo(entity.getEntity(), entity.getRawType(), entity.getType(), response.getAnnotations(), response.getMediaType(), response.getHeaders(), resp.getOutputStream());
+    }
+
+    private static void headers(HttpServletResponse resp, OutboundResponse response) {
         MultivaluedMap<String, Object> headers = response.getHeaders();
         for (String name : headers.keySet()) {
             for (Object value : headers.get(name)) {
                 RuntimeDelegate.HeaderDelegate headerDelegate = RuntimeDelegate.getInstance().createHeaderDelegate(value.getClass());
                 resp.addHeader(name, headerDelegate.toString(value));
             }
-        }
-        GenericEntity entity = response.getGenericEntity();
-        if (entity != null) {
-            MessageBodyWriter writer = providers.getMessageBodyWriter(entity.getRawType(), entity.getType(), response.getAnnotations(), response.getMediaType());
-            writer.writeTo(entity.getEntity(), entity.getRawType(), entity.getType(), response.getAnnotations(), response.getMediaType(), response.getHeaders(), resp.getOutputStream());
         }
     }
 
