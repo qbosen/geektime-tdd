@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.GenericEntity;
 import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.ws.rs.core.Response;
 
 import java.util.Collections;
 import java.util.Comparator;
@@ -55,9 +56,11 @@ class DefaultResourceRouter implements ResourceRouter {
                 uri
         ));
 
-        GenericEntity<?> entity = method.map(m -> m.call(resourceContext, uri)).get();
-
-        return (OutboundResponse) OutboundResponse.ok(entity).build();
+        return (OutboundResponse) method.map(m -> Optional.ofNullable(m.call(resourceContext, uri))
+                        .map(entity -> OutboundResponse.ok(entity).build())
+                        .orElseGet(() -> Response.noContent().build()))
+                .orElseGet(() -> OutboundResponse.status(Response.Status.NOT_FOUND).build())
+                ;
     }
 
     record Result(Optional<UriTemplate.MatchResult> matched, RootResource resource) {
