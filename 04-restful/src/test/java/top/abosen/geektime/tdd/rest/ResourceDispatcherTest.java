@@ -55,27 +55,52 @@ public class ResourceDispatcherTest {
     //TODO R1, R2, RI, R2, matched, R1 result < R2 result R1
     @Test
     void should_use_matched_root_resource() {
-        ResourceRouter.RootResource matched = mock(ResourceRouter.RootResource.class);
-        UriTemplate matchedUriTemplate = mock(UriTemplate.class);
-        when(matched.getUriTemplate()).thenReturn(matchedUriTemplate);
-        UriTemplate.MatchResult result = mock(UriTemplate.MatchResult.class);
-        when(matchedUriTemplate.match(eq("/users/1"))).thenReturn(Optional.of(result));
-        when(result.getRemaining()).thenReturn("/1");
-        ResourceRouter.ResourceMethod method = mock(ResourceRouter.ResourceMethod.class);
-        when(matched.match(eq("/1"), eq("GET"), eq(new String[]{MediaType.WILDCARD}), eq(builder))).thenReturn(Optional.of(method));
         GenericEntity entity = new GenericEntity("matched", String.class);
-        when(method.call(same(context), same(builder))).thenReturn(entity);
 
+        DefaultResourceRouter router = new DefaultResourceRouter(runtime, List.of(
+                rootResource(matched("/users/1", result("/1")), returns(entity)),
+                rootResource(unmatched("/users"))));
 
-        ResourceRouter.RootResource unmatched = mock(ResourceRouter.RootResource.class);
-        UriTemplate unmatchedUriTemplate = mock(UriTemplate.class);
-        when(unmatched.getUriTemplate()).thenReturn(unmatchedUriTemplate);
-        when(unmatchedUriTemplate.match(eq("/users"))).thenReturn(Optional.empty());
-
-        DefaultResourceRouter router = new DefaultResourceRouter(runtime, List.of(matched, unmatched));
         OutboundResponse response = router.dispatch(request, context);
         assertSame(entity, response.getGenericEntity());
         assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    }
+
+    private static ResourceRouter.RootResource rootResource(UriTemplate unmatchedUriTemplate) {
+        ResourceRouter.RootResource unmatched = mock(ResourceRouter.RootResource.class);
+        when(unmatched.getUriTemplate()).thenReturn(unmatchedUriTemplate);
+        return unmatched;
+    }
+
+    private static UriTemplate unmatched(String path) {
+        UriTemplate unmatchedUriTemplate = mock(UriTemplate.class);
+        when(unmatchedUriTemplate.match(eq(path))).thenReturn(Optional.empty());
+        return unmatchedUriTemplate;
+    }
+
+    private ResourceRouter.RootResource rootResource(UriTemplate matchedUriTemplate, ResourceRouter.ResourceMethod method) {
+        ResourceRouter.RootResource matched = mock(ResourceRouter.RootResource.class);
+        when(matched.getUriTemplate()).thenReturn(matchedUriTemplate);
+        when(matched.match(eq("/1"), eq("GET"), eq(new String[]{MediaType.WILDCARD}), eq(builder))).thenReturn(Optional.of(method));
+        return matched;
+    }
+
+    private ResourceRouter.ResourceMethod returns(GenericEntity entity) {
+        ResourceRouter.ResourceMethod method = mock(ResourceRouter.ResourceMethod.class);
+        when(method.call(same(context), same(builder))).thenReturn(entity);
+        return method;
+    }
+
+    private static UriTemplate matched(String path, UriTemplate.MatchResult result) {
+        UriTemplate matchedUriTemplate = mock(UriTemplate.class);
+        when(matchedUriTemplate.match(eq(path))).thenReturn(Optional.of(result));
+        return matchedUriTemplate;
+    }
+
+    private static UriTemplate.MatchResult result(String path) {
+        UriTemplate.MatchResult result = mock(UriTemplate.MatchResult.class);
+        when(result.getRemaining()).thenReturn(path);
+        return result;
     }
 
     //TODO 如果没有匹配的RootResource，则构造404的Response
