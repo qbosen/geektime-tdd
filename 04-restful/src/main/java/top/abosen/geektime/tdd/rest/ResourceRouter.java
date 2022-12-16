@@ -6,6 +6,7 @@ import jakarta.ws.rs.core.GenericEntity;
 import jakarta.ws.rs.core.HttpHeaders;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -45,7 +46,9 @@ class DefaultResourceRouter implements ResourceRouter {
 
         UriInfoBuilder uri = runtime.createUriInfoBuilder(request);
         Optional<Result> matched = rootResources.stream().map(it -> new Result(it.getUriTemplate().match(path), it))
-                .filter(it -> it.matched.isPresent()).findFirst();
+                .filter(it -> it.matched.isPresent())
+                .sorted(Comparator.comparing(it -> it.matched.get()))
+                .findFirst();
 
         Optional<ResourceMethod> method = matched.flatMap(resource -> resource.resource.match(resource.matched.get().getRemaining(), request.getMethod(),
                 Collections.list(request.getHeaders(HttpHeaders.ACCEPT)).toArray(String[]::new),

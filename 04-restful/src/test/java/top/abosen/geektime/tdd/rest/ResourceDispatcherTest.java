@@ -12,12 +12,14 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Vector;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -50,9 +52,7 @@ public class ResourceDispatcherTest {
         when(runtime.createUriInfoBuilder(same(request))).thenReturn(builder);
     }
 
-    //TODO 根据与Path匹配结果，降序排列RootResource，选择第一个的RootResource
-    //TODO R1, R2, R1 matched, R2 none R1
-    //TODO R1, R2, RI, R2, matched, R1 result < R2 result R1
+
     @Test
     void should_use_matched_root_resource() {
         GenericEntity entity = new GenericEntity("matched", String.class);
@@ -63,6 +63,20 @@ public class ResourceDispatcherTest {
 
         OutboundResponse response = router.dispatch(request, context);
         assertSame(entity, response.getGenericEntity());
+        assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    }
+
+    @Test
+    void should_sort_matched_root_resource_descending_order() {
+        GenericEntity entity1 = new GenericEntity("1", String.class);
+        GenericEntity entity2 = new GenericEntity("2", String.class);
+        DefaultResourceRouter router = new DefaultResourceRouter(runtime, List.of(
+                rootResource(matched("/users/1", result("/1", 2)), returns(entity2)),
+                rootResource(matched("/users/1", result("/1", 1)), returns(entity1))
+        ));
+
+        OutboundResponse response = router.dispatch(request, context);
+        assertSame(entity1, response.getGenericEntity());
         assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
     }
 
@@ -98,9 +112,41 @@ public class ResourceDispatcherTest {
     }
 
     private static UriTemplate.MatchResult result(String path) {
-        UriTemplate.MatchResult result = mock(UriTemplate.MatchResult.class);
-        when(result.getRemaining()).thenReturn(path);
-        return result;
+        return new FakeMathResult(path, 0);
+    }
+
+    private static UriTemplate.MatchResult result(String path, int order) {
+        return new FakeMathResult(path, order);
+    }
+
+    static class FakeMathResult implements UriTemplate.MatchResult {
+        private String remaining;
+        private int order;
+
+        public FakeMathResult(String remaining, int order) {
+            this.remaining = remaining;
+            this.order = order;
+        }
+
+        @Override
+        public String getMatchedPath() {
+            return null;
+        }
+
+        @Override
+        public String getRemaining() {
+            return remaining;
+        }
+
+        @Override
+        public Map<String, String> getMatchedPathParameters() {
+            return null;
+        }
+
+        @Override
+        public int compareTo(UriTemplate.MatchResult o) {
+            return Integer.compare(this.order, ((FakeMathResult) o).order);
+        }
     }
 
     //TODO 如果没有匹配的RootResource，则构造404的Response
