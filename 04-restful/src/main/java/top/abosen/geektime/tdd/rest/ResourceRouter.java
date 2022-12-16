@@ -44,10 +44,10 @@ class DefaultResourceRouter implements ResourceRouter {
         String path = request.getServletPath();
 
         UriInfoBuilder uri = runtime.createUriInfoBuilder(request);
-        Optional<RootResource> matched = rootResources.stream().map(it -> new Result(it.getUriTemplate().match(path), it))
-                .filter(it -> it.matched.isPresent()).map(it -> it.resource).findFirst();
+        Optional<Result> matched = rootResources.stream().map(it -> new Result(it.getUriTemplate().match(path), it))
+                .filter(it -> it.matched.isPresent()).findFirst();
 
-        Optional<ResourceMethod> method = matched.flatMap(resource -> resource.match(path, request.getMethod(),
+        Optional<ResourceMethod> method = matched.flatMap(resource -> resource.resource.match(resource.matched.get().getRemaining(), request.getMethod(),
                 Collections.list(request.getHeaders(HttpHeaders.ACCEPT)).toArray(String[]::new),
                 uri
         ));
