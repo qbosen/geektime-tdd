@@ -160,7 +160,7 @@ public class ResourceDispatcherTest {
         }
 
         @Override
-        public String getMatchedPath() {
+        public String getMatched() {
             return null;
         }
 
