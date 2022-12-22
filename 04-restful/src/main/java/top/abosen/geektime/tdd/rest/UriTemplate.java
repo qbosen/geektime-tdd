@@ -1,13 +1,8 @@
 package top.abosen.geektime.tdd.rest;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * @author qiubaisen
@@ -39,7 +34,7 @@ class UriTemplateString implements UriTemplate {
     private static final int variableNameGroup = 1;
     private static final int variablePatternGroup = 3;
     private final List<String> variables = new ArrayList<>();
-    private final int variableStartFrom;
+    private final int variableGroupStartFrom;
 
     private static String group(String pattern) {
         return group(pattern, false);
@@ -51,7 +46,7 @@ class UriTemplateString implements UriTemplate {
 
     public UriTemplateString(String template) {
         pattern = Pattern.compile(group(variable(template)) + "(/.*)?");
-        variableStartFrom = 2;
+        variableGroupStartFrom = 2;
     }
 
     private String variable(String template) {
@@ -70,31 +65,50 @@ class UriTemplateString implements UriTemplate {
     public Optional<MatchResult> match(String path) {
         Matcher matcher = pattern.matcher(path);
         if (!matcher.matches()) return Optional.empty();
-        int count = matcher.groupCount();
+        return Optional.of(new PathMatchResult(matcher));
+    }
 
-        Map<String, String> parameters = IntStream.range(0, variables.size()).boxed()
-                .collect(Collectors.toMap(variables::get, i -> matcher.group(i + variableStartFrom)));
 
-        return Optional.of(new MatchResult() {
-            @Override
-            public String getMatched() {
-                return matcher.group(1);
+    class PathMatchResult implements MatchResult {
+
+        private final Matcher matcher;
+        private final int count;
+        private final Map<String, String> parameters;
+        private int matchLiteralCount;
+
+        public PathMatchResult(Matcher matcher) {
+            this.matcher = matcher;
+            this.count = matcher.groupCount();
+            this.matchLiteralCount = matcher.group(1).length();
+            this.parameters = new HashMap<>();
+            for (int i = 0; i < variables.size(); i++) {
+                if (parameters.containsKey(variables.get(i))) throw new IllegalStateException("Duplicate key");
+                this.matchLiteralCount -= matcher.group(i + variableGroupStartFrom).length();
+                parameters.put(variables.get(i), matcher.group(i + variableGroupStartFrom));
             }
+        }
 
-            @Override
-            public String getRemaining() {
-                return matcher.group(count);
-            }
+        @Override
+        public String getMatched() {
+            return matcher.group(1);
+        }
 
-            @Override
-            public Map<String, String> getMatchedPathParameters() {
-                return parameters;
-            }
+        @Override
+        public String getRemaining() {
+            return matcher.group(count);
+        }
 
-            @Override
-            public int compareTo(MatchResult o) {
-                return 0;
-            }
-        });
+        @Override
+        public Map<String, String> getMatchedPathParameters() {
+            return parameters;
+        }
+
+        @Override
+        public int compareTo(MatchResult o) {
+            PathMatchResult other = (PathMatchResult) o;
+            if (this.matchLiteralCount > other.matchLiteralCount) return -1;
+            if (this.parameters.size() > other.parameters.size()) return -1;
+            return 0;
+        }
     }
 }

@@ -56,5 +56,28 @@ public class UriTemplateStringTest {
         assertThrows(IllegalArgumentException.class, () -> new UriTemplateString("/users/{id:[0-9]+}/{id}"));
     }
 
-    //TODO comparing result, with match Literal, variables, and specific variables
+    //TODO comparing result, with match literal, variables, and specific variables
+    @Test
+    void should_compare_for_match_literal() {
+        String path = "/users/1234";
+        UriTemplateString smaller = new UriTemplateString("/users/1234");
+        UriTemplateString larger = new UriTemplateString("/users/{id}");
+
+        UriTemplate.MatchResult lhs = smaller.match(path).get();
+        UriTemplate.MatchResult rhs = larger.match(path).get();
+
+        assertTrue(lhs.compareTo(rhs) < 0);
+    }
+
+    @Test
+    void should_compare_match_match_variables_if_matched_literal_equally() {
+        String path = "/users/1234567890/order";
+        UriTemplateString smaller = new UriTemplateString("/{resources}/1234567890/{action}");
+        UriTemplateString larger = new UriTemplateString("/users/{id}/order");
+
+        UriTemplate.MatchResult lhs = smaller.match(path).get();
+        UriTemplate.MatchResult rhs = larger.match(path).get();
+
+        assertTrue(lhs.compareTo(rhs) < 0);
+    }
 }
