@@ -1,6 +1,9 @@
 package top.abosen.geektime.tdd.rest;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -26,12 +29,21 @@ interface UriTemplate {
 
 class UriTemplateString implements UriTemplate {
 
+    private static final String LeftBracket = "\\{";
+    private static final String RightBracket = "}";
+    private static final String VariableName = "\\w[\\w.-]*";
     private final Pattern pattern;
-    private static final Pattern variable = Pattern.compile("\\{(\\w[\\w.-]*)}");
+    private static final Pattern variable = Pattern.compile(LeftBracket + group(VariableName) + RightBracket);
     private final List<String> variables = new ArrayList<>();
+    private final int variableStartFrom;
+
+    private static String group(String pattern) {
+        return "(" + pattern + ")";
+    }
 
     public UriTemplateString(String template) {
-        pattern = Pattern.compile("(" + variable(template) + ")" + "(/.*)?");
+        pattern = Pattern.compile(group(variable(template)) + "(/.*)?");
+        variableStartFrom = 2;
     }
 
     private String variable(String template) {
@@ -47,8 +59,8 @@ class UriTemplateString implements UriTemplate {
         if (!matcher.matches()) return Optional.empty();
         int count = matcher.groupCount();
 
-        Map<String, String> parameters = IntStream.range(2, count).boxed()
-                .collect(Collectors.toMap(i -> variables.get(i - 2), matcher::group));
+        Map<String, String> parameters = IntStream.range(variableStartFrom, count).boxed()
+                .collect(Collectors.toMap(i -> variables.get(i - variableStartFrom), matcher::group));
 
         return Optional.of(new MatchResult() {
             @Override
