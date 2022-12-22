@@ -35,6 +35,7 @@ class UriTemplateString implements UriTemplate {
     private static final int variablePatternGroup = 3;
     private final List<String> variables = new ArrayList<>();
     private final int variableGroupStartFrom;
+    private int specificParameterCount = 0;
 
     private static String group(String pattern) {
         return group(pattern, false);
@@ -57,7 +58,11 @@ class UriTemplateString implements UriTemplate {
                 throw new IllegalArgumentException("duplicate variable: " + variableName);
             }
             variables.add(variableName);
-            return pattern == null ? DefaultVariablePattern : group(pattern);
+            if (pattern != null) {
+                specificParameterCount++;
+                return group(pattern);
+            }
+            return DefaultVariablePattern;
         });
     }
 
@@ -65,7 +70,7 @@ class UriTemplateString implements UriTemplate {
     public Optional<MatchResult> match(String path) {
         Matcher matcher = pattern.matcher(path);
         if (!matcher.matches()) return Optional.empty();
-        return Optional.of(new PathMatchResult(matcher));
+        return Optional.of(new PathMatchResult(matcher, specificParameterCount));
     }
 
 
@@ -74,13 +79,15 @@ class UriTemplateString implements UriTemplate {
         private final Matcher matcher;
         private final int count;
         private final Map<String, String> parameters;
+        private final int specificParameterCount;
         private int matchLiteralCount;
 
-        public PathMatchResult(Matcher matcher) {
+        public PathMatchResult(Matcher matcher, int specificParameterCount) {
             this.matcher = matcher;
             this.count = matcher.groupCount();
             this.matchLiteralCount = matcher.group(1).length();
             this.parameters = new HashMap<>();
+            this.specificParameterCount = specificParameterCount;
             for (int i = 0; i < variables.size(); i++) {
                 if (parameters.containsKey(variables.get(i))) throw new IllegalStateException("Duplicate key");
                 this.matchLiteralCount -= matcher.group(i + variableGroupStartFrom).length();
@@ -105,10 +112,10 @@ class UriTemplateString implements UriTemplate {
 
         @Override
         public int compareTo(MatchResult o) {
-            PathMatchResult other = (PathMatchResult) o;
-            if (this.matchLiteralCount > other.matchLiteralCount) return -1;
-            if (this.parameters.size() > other.parameters.size()) return -1;
-            return 0;
+            return Comparator.<PathMatchResult, Integer>comparing(it -> it.matchLiteralCount, Comparator.reverseOrder())
+                    .thenComparing(it -> it.parameters.size(), Comparator.reverseOrder())
+                    .thenComparing(it -> it.specificParameterCount, Comparator.reverseOrder())
+                    .compare(this, (PathMatchResult) o);
         }
     }
 }

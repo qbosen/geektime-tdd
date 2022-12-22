@@ -56,28 +56,38 @@ public class UriTemplateStringTest {
         assertThrows(IllegalArgumentException.class, () -> new UriTemplateString("/users/{id:[0-9]+}/{id}"));
     }
 
-    //TODO comparing result, with match literal, variables, and specific variables
     @Test
     void should_compare_for_match_literal() {
-        String path = "/users/1234";
-        UriTemplateString smaller = new UriTemplateString("/users/1234");
-        UriTemplateString larger = new UriTemplateString("/users/{id}");
-
-        UriTemplate.MatchResult lhs = smaller.match(path).get();
-        UriTemplate.MatchResult rhs = larger.match(path).get();
-
-        assertTrue(lhs.compareTo(rhs) < 0);
+        assertSmaller("/users/1234", "/users/1234", "/users/{id}");
     }
 
     @Test
-    void should_compare_match_match_variables_if_matched_literal_equally() {
-        String path = "/users/1234567890/order";
-        UriTemplateString smaller = new UriTemplateString("/{resources}/1234567890/{action}");
-        UriTemplateString larger = new UriTemplateString("/users/{id}/order");
+    void should_compare__match_variables_if_matched_literal_same() {
+        assertSmaller("/users/1234567890/order", "/{resources}/1234567890/{action}", "/users/{id}/order");
+    }
+
+    @Test
+    void should_compare_specific_variable_if_matched_literal_variable_same() {
+        assertSmaller("/users/1", "/users/{id:[0-9]+}", "/users/{id}");
+    }
+
+    @Test
+    void should_compare_equal_match_result() {
+        UriTemplateString template = new UriTemplateString("/users/{id}");
+        UriTemplate.MatchResult result = template.match("/users/1").get();
+
+        assertEquals(0, result.compareTo(result));
+    }
+
+
+    private static void assertSmaller(String path, String smallerTemplate, String largerTemplate) {
+        UriTemplateString smaller = new UriTemplateString(smallerTemplate);
+        UriTemplateString larger = new UriTemplateString(largerTemplate);
 
         UriTemplate.MatchResult lhs = smaller.match(path).get();
         UriTemplate.MatchResult rhs = larger.match(path).get();
 
         assertTrue(lhs.compareTo(rhs) < 0);
+        assertTrue(rhs.compareTo(lhs) > 0);
     }
 }
