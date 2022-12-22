@@ -1,6 +1,7 @@
 package top.abosen.geektime.tdd.rest;
 
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
@@ -27,8 +28,8 @@ public class RootResourceTest {
 
 
     @ParameterizedTest
-    @CsvSource({"/messages/hello,GET,Messages.hello", "/messages/ah,GET,Messages.ah"})
-    void should_match_resource_method(String path, String httpMethod, String resourceMethod) {
+    @CsvSource({"GET,/messages/hello,Messages.hello", "GET,/messages/ah,Messages.ah", "POST,/messages/hello,Messages.postHello"})
+    void should_match_resource_method(String httpMethod, String path, String resourceMethod) {
         ResourceRouter.RootResource resource = new RootResourceClass(Messages.class);
         ResourceRouter.ResourceMethod method = resource.match(path, httpMethod, new String[]{MediaType.TEXT_PLAIN}, Mockito.mock(UriInfoBuilder.class)).get();
         assertEquals(resourceMethod, method.toString());
@@ -52,6 +53,13 @@ public class RootResourceTest {
         @Path("/hello")
         @Produces(MediaType.TEXT_PLAIN)
         public String hello() {
+            return "hello";
+        }
+
+        @POST
+        @Path("/hello")
+        @Produces(MediaType.TEXT_PLAIN)
+        public String postHello() {
             return "hello";
         }
     }
