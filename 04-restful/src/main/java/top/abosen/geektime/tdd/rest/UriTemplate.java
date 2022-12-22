@@ -32,13 +32,21 @@ class UriTemplateString implements UriTemplate {
     private static final String LeftBracket = "\\{";
     private static final String RightBracket = "}";
     private static final String VariableName = "\\w[\\w.-]*";
+    private static final String NonBrackets = "[^\\{}]+";
+    public static final String DefaultVariablePattern = "([^/]+?)";
     private final Pattern pattern;
-    private static final Pattern variable = Pattern.compile(LeftBracket + group(VariableName) + RightBracket);
+    private static final Pattern variable = Pattern.compile(LeftBracket + group(VariableName) + group(":" + group(NonBrackets), true) + RightBracket);
+    private static final int variableNameGroup = 1;
+    private static final int variablePatternGroup = 3;
     private final List<String> variables = new ArrayList<>();
     private final int variableStartFrom;
 
     private static String group(String pattern) {
-        return "(" + pattern + ")";
+        return group(pattern, false);
+    }
+
+    private static String group(String pattern, boolean optional) {
+        return "(" + pattern + ")" + (optional ? "?" : "");
     }
 
     public UriTemplateString(String template) {
@@ -48,8 +56,8 @@ class UriTemplateString implements UriTemplate {
 
     private String variable(String template) {
         return variable.matcher(template).replaceAll(result -> {
-            variables.add(result.group(1));
-            return "([^/]+?)";
+            variables.add(result.group(variableNameGroup));
+            return result.group(variablePatternGroup) == null ? DefaultVariablePattern : group(result.group(variablePatternGroup));
         });
     }
 
@@ -59,8 +67,8 @@ class UriTemplateString implements UriTemplate {
         if (!matcher.matches()) return Optional.empty();
         int count = matcher.groupCount();
 
-        Map<String, String> parameters = IntStream.range(variableStartFrom, count).boxed()
-                .collect(Collectors.toMap(i -> variables.get(i - variableStartFrom), matcher::group));
+        Map<String, String> parameters = IntStream.range(0, variables.size()).boxed()
+                .collect(Collectors.toMap(variables::get, i -> matcher.group(i  + variableStartFrom)));
 
         return Optional.of(new MatchResult() {
             @Override

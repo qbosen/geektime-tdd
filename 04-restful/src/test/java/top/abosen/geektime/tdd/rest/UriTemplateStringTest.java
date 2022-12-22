@@ -36,7 +36,21 @@ public class UriTemplateStringTest {
         assertFalse(result.getMatchedPathParameters().isEmpty());
         assertEquals("1", result.getMatchedPathParameters().get("id"));
     }
-    //TODO path match with variables with specific pattern
+
+    @Test
+    void should_return_empty_if_not_match_given_pattern() {
+        UriTemplateString template = new UriTemplateString("/users/{id:[0-9]+}");
+        Optional<UriTemplate.MatchResult> result = template.match("/users/id");
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void should_extract_variable_value_by_given_pattern() {
+        UriTemplateString template = new UriTemplateString("/users/{id:[0-9]+}");
+        UriTemplate.MatchResult result = template.match("/users/1").get();
+        assertEquals("1", result.getMatchedPathParameters().get("id"));
+    }
+
     //TODO throw exception if variable redefined
     //TODO comparing result, with match Literal, variables, and specific variables
 }
