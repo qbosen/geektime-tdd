@@ -1,9 +1,10 @@
 package top.abosen.geektime.tdd.rest;
 
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * @author qiubaisen
@@ -26,15 +27,18 @@ interface UriTemplate {
 class UriTemplateString implements UriTemplate {
 
     private final Pattern pattern;
-    private static final Pattern variable = Pattern.compile("\\{\\w[\\w.-]*}");
-    ;
+    private static final Pattern variable = Pattern.compile("\\{(\\w[\\w.-]*)}");
+    private final List<String> variables = new ArrayList<>();
 
     public UriTemplateString(String template) {
         pattern = Pattern.compile("(" + variable(template) + ")" + "(/.*)?");
     }
 
-    private static String variable(String template) {
-        return variable.matcher(template).replaceAll("([^/]+?)");
+    private String variable(String template) {
+        return variable.matcher(template).replaceAll(result -> {
+            variables.add(result.group(1));
+            return "([^/]+?)";
+        });
     }
 
     @Override
@@ -42,6 +46,10 @@ class UriTemplateString implements UriTemplate {
         Matcher matcher = pattern.matcher(path);
         if (!matcher.matches()) return Optional.empty();
         int count = matcher.groupCount();
+
+        Map<String, String> parameters = IntStream.range(2, count).boxed()
+                .collect(Collectors.toMap(i -> variables.get(i - 2), matcher::group));
+
         return Optional.of(new MatchResult() {
             @Override
             public String getMatched() {
@@ -55,7 +63,7 @@ class UriTemplateString implements UriTemplate {
 
             @Override
             public Map<String, String> getMatchedPathParameters() {
-                return null;
+                return parameters;
             }
 
             @Override

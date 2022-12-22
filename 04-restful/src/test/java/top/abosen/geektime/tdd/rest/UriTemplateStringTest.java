@@ -27,13 +27,14 @@ public class UriTemplateStringTest {
         assertEquals("/1", result.getRemaining());
     }
 
-    //TODO path match with variables
     @Test
     void should_return_match_result_if_path_matched_with_variable() {
         UriTemplateString template = new UriTemplateString("/users/{id}");
         UriTemplate.MatchResult result = template.match("/users/1").get();
         assertEquals("/users/1", result.getMatched());
         assertNull(result.getRemaining());
+        assertFalse(result.getMatchedPathParameters().isEmpty());
+        assertEquals("1", result.getMatchedPathParameters().get("id"));
     }
     //TODO path match with variables with specific pattern
     //TODO throw exception if variable redefined
