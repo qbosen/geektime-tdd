@@ -1,14 +1,19 @@
 package top.abosen.geektime.tdd.rest;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.HttpMethod;
+import jakarta.ws.rs.Path;
 import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.GenericEntity;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response;
 
+import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * @author qiubaisen
@@ -79,4 +84,50 @@ class DefaultResourceRouter implements ResourceRouter {
         }
     }
 
+}
+
+class RootResourceClass implements ResourceRouter.RootResource {
+
+    private final Class<?> resourceClass;
+    private final PathTemplate uriTemplate;
+    private final List<ResourceRouter.ResourceMethod> resourceMethods;
+
+    public RootResourceClass(Class<?> resourceClass) {
+        this.resourceClass = resourceClass;
+        uriTemplate = new PathTemplate(resourceClass.getAnnotation(Path.class).value());
+        resourceMethods = Arrays.stream(resourceClass.getMethods()).filter(m -> Arrays.stream(m.getAnnotations())
+                        .anyMatch(it -> it.annotationType().isAnnotationPresent(HttpMethod.class)))
+                .map(m -> new DefaultResourceMethod(m))
+                .collect(Collectors.toList());
+
+    }
+
+    @Override
+    public Optional<ResourceRouter.ResourceMethod> match(String path, String method, String[] mediaType, UriInfoBuilder builder) {
+        return resourceMethods.stream().findFirst();
+    }
+
+    @Override
+    public UriTemplate getUriTemplate() {
+        return uriTemplate;
+    }
+
+    static class DefaultResourceMethod implements ResourceRouter.ResourceMethod {
+
+        private final Method method;
+
+        public DefaultResourceMethod(Method method) {
+            this.method = method;
+        }
+
+        @Override
+        public GenericEntity<?> call(ResourceContext resourceContext, UriInfoBuilder builder) {
+            return null;
+        }
+
+        @Override
+        public String toString() {
+            return method.getDeclaringClass().getSimpleName() + "." + method.getName();
+        }
+    }
 }
