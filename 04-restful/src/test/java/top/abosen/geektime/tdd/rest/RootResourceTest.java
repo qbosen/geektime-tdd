@@ -31,7 +31,8 @@ public class RootResourceTest {
     @CsvSource({"GET,/messages/hello,Messages.hello", "GET,/messages/ah,Messages.ah", "POST,/messages/hello,Messages.postHello","GET,/messages/topics/1234,Messages.topic1234",})
     void should_match_resource_method(String httpMethod, String path, String resourceMethod) {
         ResourceRouter.RootResource resource = new RootResourceClass(Messages.class);
-        ResourceRouter.ResourceMethod method = resource.match(path, httpMethod, new String[]{MediaType.TEXT_PLAIN}, Mockito.mock(UriInfoBuilder.class)).get();
+        UriTemplate.MatchResult result = resource.getUriTemplate().match(path).get();
+        ResourceRouter.ResourceMethod method = resource.match(result, httpMethod, new String[]{MediaType.TEXT_PLAIN}, Mockito.mock(UriInfoBuilder.class)).get();
         assertEquals(resourceMethod, method.toString());
     }
 
