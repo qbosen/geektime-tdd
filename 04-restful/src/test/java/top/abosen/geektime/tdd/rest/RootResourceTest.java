@@ -28,7 +28,7 @@ public class RootResourceTest {
 
 
     @ParameterizedTest
-    @CsvSource({"GET,/messages/hello,Messages.hello", "GET,/messages/ah,Messages.ah", "POST,/messages/hello,Messages.postHello"})
+    @CsvSource({"GET,/messages/hello,Messages.hello", "GET,/messages/ah,Messages.ah", "POST,/messages/hello,Messages.postHello","GET,/messages/topics/1234,Messages.topic1234",})
     void should_match_resource_method(String httpMethod, String path, String resourceMethod) {
         ResourceRouter.RootResource resource = new RootResourceClass(Messages.class);
         ResourceRouter.ResourceMethod method = resource.match(path, httpMethod, new String[]{MediaType.TEXT_PLAIN}, Mockito.mock(UriInfoBuilder.class)).get();
@@ -61,6 +61,20 @@ public class RootResourceTest {
         @Produces(MediaType.TEXT_PLAIN)
         public String postHello() {
             return "hello";
+        }
+
+        @GET
+        @Path("/topics/{id}")
+        @Produces(MediaType.TEXT_PLAIN)
+        public String topicId() {
+            return "topicId";
+        }
+
+        @GET
+        @Path("/topics/1234")
+        @Produces(MediaType.TEXT_PLAIN)
+        public String topic1234() {
+            return "topic1234";
         }
     }
 

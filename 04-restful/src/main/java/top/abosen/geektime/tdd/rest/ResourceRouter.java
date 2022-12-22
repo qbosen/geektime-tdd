@@ -108,13 +108,33 @@ class RootResourceClass implements ResourceRouter.RootResource {
         String remaining = result.getRemaining();
 
         return resourceMethodMap.getOrDefault(method, Collections.emptyList())
-                .stream().filter(m -> m.getUriTemplate().match(remaining).map(it -> it.getRemaining() == null).orElse(false))
+                .stream()
+                .map(m-> match(remaining, m))
+                .filter(Result::isMatched)
+                .sorted()
+                .map(Result::resourceMethod)
                 .findFirst();
     }
 
     @Override
     public UriTemplate getUriTemplate() {
         return uriTemplate;
+    }
+
+    private Result match(String path, ResourceRouter.ResourceMethod method) {
+        return new Result(method.getUriTemplate().match(path), method);
+    }
+
+    record Result(Optional<UriTemplate.MatchResult> matched,
+                  ResourceRouter.ResourceMethod resourceMethod) implements Comparable<Result> {
+
+        public boolean isMatched(){
+            return matched.filter(it -> it.getRemaining() == null).isPresent();
+        }
+        @Override
+        public int compareTo(Result o) {
+            return matched.flatMap(x -> o.matched.map(x::compareTo)).orElse(0);
+        }
     }
 
     static class DefaultResourceMethod implements ResourceRouter.ResourceMethod {
