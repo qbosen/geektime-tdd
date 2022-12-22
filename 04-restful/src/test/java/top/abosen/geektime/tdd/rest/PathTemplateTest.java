@@ -1,8 +1,8 @@
 package top.abosen.geektime.tdd.rest;
 
 import org.junit.jupiter.api.Test;
-
-import java.util.Optional;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -11,11 +11,14 @@ import static org.junit.jupiter.api.Assertions.*;
  * @date 2022/12/21
  */
 public class PathTemplateTest {
-    @Test
-    void should_return_empty_if_path_not_matched() {
-        PathTemplate template = new PathTemplate("/users");
-        Optional<UriTemplate.MatchResult> result = template.match("/orders");
-        assertTrue(result.isEmpty());
+    @ParameterizedTest
+    @CsvSource({"/users,/orders",
+            "/users/{id:[0-9]+},/users/id",
+            "/users,/unit/users"
+    })
+    void should_not_match_path(String pattern, String path) {
+        PathTemplate template = new PathTemplate(pattern);
+        assertTrue(template.match(path).isEmpty());
     }
 
     @Test
@@ -38,49 +41,18 @@ public class PathTemplateTest {
     }
 
     @Test
-    void should_return_empty_if_not_match_given_pattern() {
-        PathTemplate template = new PathTemplate("/users/{id:[0-9]+}");
-        Optional<UriTemplate.MatchResult> result = template.match("/users/id");
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
     void should_extract_variable_value_by_given_pattern() {
         PathTemplate template = new PathTemplate("/users/{id:[0-9]+}");
         UriTemplate.MatchResult result = template.match("/users/1").get();
         assertEquals("1", result.getMatchedPathParameters().get("id"));
     }
 
-    @Test
-    void should_throw_illegal_argument_exception_if_variable_redefined() {
-        assertThrows(IllegalArgumentException.class, () -> new PathTemplate("/users/{id:[0-9]+}/{id}"));
-    }
-
-    @Test
-    void should_compare_for_match_literal() {
-        assertSmaller("/users/1234", "/users/1234", "/users/{id}");
-    }
-
-    @Test
-    void should_compare__match_variables_if_matched_literal_same() {
-        assertSmaller("/users/1234567890/order", "/{resources}/1234567890/{action}", "/users/{id}/order");
-    }
-
-    @Test
-    void should_compare_specific_variable_if_matched_literal_variable_same() {
-        assertSmaller("/users/1", "/users/{id:[0-9]+}", "/users/{id}");
-    }
-
-    @Test
-    void should_compare_equal_match_result() {
-        PathTemplate template = new PathTemplate("/users/{id}");
-        UriTemplate.MatchResult result = template.match("/users/1").get();
-
-        assertEquals(0, result.compareTo(result));
-    }
-
-
-    private static void assertSmaller(String path, String smallerTemplate, String largerTemplate) {
+    @ParameterizedTest
+    @CsvSource({"/users/1234,/users/1234,/users/{id}",
+            "/users/1234567890/order,/{resources}/1234567890/{action},/users/{id}/order",
+            "/users/1,/users/{id:[0-9]+},/users/{id}"
+    })
+    void first_pattern_should_be_smaller_than_second(String path, String smallerTemplate, String largerTemplate) {
         PathTemplate smaller = new PathTemplate(smallerTemplate);
         PathTemplate larger = new PathTemplate(largerTemplate);
 
@@ -89,5 +61,18 @@ public class PathTemplateTest {
 
         assertTrue(lhs.compareTo(rhs) < 0);
         assertTrue(rhs.compareTo(lhs) > 0);
+    }
+
+    @Test
+    void should_throw_illegal_argument_exception_if_variable_redefined() {
+        assertThrows(IllegalArgumentException.class, () -> new PathTemplate("/users/{id:[0-9]+}/{id}"));
+    }
+
+    @Test
+    void should_compare_equal_match_result() {
+        PathTemplate template = new PathTemplate("/users/{id}");
+        UriTemplate.MatchResult result = template.match("/users/1").get();
+
+        assertEquals(0, result.compareTo(result));
     }
 }
