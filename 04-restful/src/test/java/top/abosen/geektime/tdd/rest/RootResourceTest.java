@@ -5,6 +5,8 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mockito;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -23,13 +25,13 @@ public class RootResourceTest {
         assertTrue(uriTemplate.match("/messages/hello").isPresent());
     }
 
-    //TODO find resource method, matches the http request and http method
-    @Test
-    void should_match_resource_method_if_uri_and_http_method_fully_matched() {
-        ResourceRouter.RootResource resource = new RootResourceClass(Messages.class);
-        ResourceRouter.ResourceMethod method = resource.match("/messages/hello", "GET", new String[]{MediaType.TEXT_PLAIN}, Mockito.mock(UriInfoBuilder.class)).get();
 
-        assertEquals("Messages.hello", method.toString());
+    @ParameterizedTest
+    @CsvSource({"/messages/hello,GET,Messages.hello", "/messages/ah,GET,Messages.ah"})
+    void should_match_resource_method(String path, String httpMethod, String resourceMethod) {
+        ResourceRouter.RootResource resource = new RootResourceClass(Messages.class);
+        ResourceRouter.ResourceMethod method = resource.match(path, httpMethod, new String[]{MediaType.TEXT_PLAIN}, Mockito.mock(UriInfoBuilder.class)).get();
+        assertEquals(resourceMethod, method.toString());
     }
 
 
@@ -39,6 +41,13 @@ public class RootResourceTest {
 
     @Path("/messages")
     static class Messages {
+        @GET
+        @Path("/ah")
+        @Produces(MediaType.TEXT_PLAIN)
+        public String ah() {
+            return "ah";
+        }
+
         @GET
         @Path("/hello")
         @Produces(MediaType.TEXT_PLAIN)
