@@ -56,8 +56,13 @@ class UriTemplateString implements UriTemplate {
 
     private String variable(String template) {
         return variable.matcher(template).replaceAll(result -> {
-            variables.add(result.group(variableNameGroup));
-            return result.group(variablePatternGroup) == null ? DefaultVariablePattern : group(result.group(variablePatternGroup));
+            String variableName = result.group(variableNameGroup);
+            String pattern = result.group(variablePatternGroup);
+            if (variables.contains(variableName)) {
+                throw new IllegalArgumentException("duplicate variable: " + variableName);
+            }
+            variables.add(variableName);
+            return pattern == null ? DefaultVariablePattern : group(pattern);
         });
     }
 
@@ -68,7 +73,7 @@ class UriTemplateString implements UriTemplate {
         int count = matcher.groupCount();
 
         Map<String, String> parameters = IntStream.range(0, variables.size()).boxed()
-                .collect(Collectors.toMap(variables::get, i -> matcher.group(i  + variableStartFrom)));
+                .collect(Collectors.toMap(variables::get, i -> matcher.group(i + variableStartFrom)));
 
         return Optional.of(new MatchResult() {
             @Override
