@@ -4,6 +4,7 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -63,8 +64,18 @@ public class RootResourceTest {
     }
 
     //TODO if resource class does not have a path annotation, throw illegal argument
-    //TODO Head and Option special
+    //TODO Head and Option special case
 
+    @Test
+    @Disabled
+    void should_add_last_match_resource_to_uri_info_builder() {
+        ResourceRouter.RootResource resource = new RootResourceClass(Messages.class);
+        UriTemplate.MatchResult result = resource.getUriTemplate().match("/messages").get();
+        StubUriInfoBuilder uriInfoBuilder = new StubUriInfoBuilder();
+        resource.match(result, "GET", new String[]{MediaType.TEXT_PLAIN}, uriInfoBuilder).get();
+
+        assertTrue(uriInfoBuilder.getLastMatchedResource() instanceof Messages);
+    }
 
     @Path("/messages")
     static class Messages {
