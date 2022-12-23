@@ -48,9 +48,31 @@ public class RootResourceTest {
 
 
     //TODO if sub resource Locator matches uri, using it to do follow up matching
+
     //TODO if no method / sub resource Locator matches, return 404
+    @ParameterizedTest(name = "{2}")
+    @CsvSource(textBlock = """
+            GET,        /missing-messages/1,        URI not matched
+            POST,       /missing-messages,          Http method not matched
+            """)
+    void should_return_empty_if_not_matched(String httpMethod, String uri, String testName) {
+        ResourceRouter.RootResource resource = new RootResourceClass(MissingMessages.class);
+        UriTemplate.MatchResult result = resource.getUriTemplate().match(uri).get();
+        assertTrue(resource.match(result, httpMethod, new String[]{MediaType.TEXT_PLAIN}, Mockito.mock(UriInfoBuilder.class)).isEmpty());
+    }
+
     //TODO if resource class does not have a path annotation, throw illegal argument
     //TODO Head and Option special
+
+    @Path("/missing-messages")
+    static class MissingMessages {
+        @GET
+        @Produces(MediaType.TEXT_PLAIN)
+        public String get() {
+            return "messages";
+        }
+
+    }
 
     @Path("/messages")
     static class Messages {
