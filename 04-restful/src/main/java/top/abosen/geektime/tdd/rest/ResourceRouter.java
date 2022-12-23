@@ -96,13 +96,12 @@ class RootResourceClass implements ResourceRouter.RootResource {
     public RootResourceClass(Class<?> resourceClass) {
         this.resourceClass = resourceClass;
         this.uriTemplate = new PathTemplate(resourceClass.getAnnotation(Path.class).value());
-        this.resourceMethods = new ResourceMethods(ResourceMethods.getResourceMethod(resourceClass));
+        this.resourceMethods = new ResourceMethods(resourceClass.getMethods());
     }
 
     @Override
     public Optional<ResourceRouter.ResourceMethod> match(UriTemplate.MatchResult result, String method, String[] mediaType, UriInfoBuilder builder) {
         String remaining = Optional.ofNullable(result.getRemaining()).orElse("");
-
         return resourceMethods.findResourceMethod(remaining, method);
     }
 
@@ -115,28 +114,30 @@ class RootResourceClass implements ResourceRouter.RootResource {
 }
 
 class SubResourceClass implements ResourceRouter.Resource {
+    private final ResourceMethods resourceMethods;
     private Object subResource;
 
     public SubResourceClass(Object subResource) {
-
         this.subResource = subResource;
+        this.resourceMethods = new ResourceMethods(subResource.getClass().getMethods());
     }
 
     @Override
     public Optional<ResourceRouter.ResourceMethod> match(UriTemplate.MatchResult result, String method, String[] mediaType, UriInfoBuilder builder) {
-        return Optional.empty();
+        String remaining = Optional.ofNullable(result.getRemaining()).orElse("");
+        return resourceMethods.findResourceMethod(remaining, method);
     }
 }
 
 class ResourceMethods {
-    private final Map<String, List<ResourceRouter.ResourceMethod>> resourceMethodMap;
+    private final Map<String, List<ResourceRouter.ResourceMethod>> resourceMethods;
 
-    public ResourceMethods(Map<String, List<ResourceRouter.ResourceMethod>> resourceMethodMap) {
-        this.resourceMethodMap = resourceMethodMap;
+    public ResourceMethods(Method[] methods) {
+        this.resourceMethods = getResourceMethods(methods);
     }
 
-    public static Map<String, List<ResourceRouter.ResourceMethod>> getResourceMethod(Class<?> resourceClass) {
-        return Arrays.stream(resourceClass.getMethods()).filter(m -> Arrays.stream(m.getAnnotations())
+    private static Map<String, List<ResourceRouter.ResourceMethod>> getResourceMethods(Method[] methods) {
+        return Arrays.stream(methods).filter(m -> Arrays.stream(m.getAnnotations())
                         .anyMatch(it -> it.annotationType().isAnnotationPresent(HttpMethod.class)))
                 .map(DefaultResourceMethod::new)
                 .collect(Collectors.groupingBy(ResourceRouter.ResourceMethod::getHttpMethod));
@@ -147,7 +148,7 @@ class ResourceMethods {
     }
 
     public Optional<ResourceRouter.ResourceMethod> findResourceMethod(String path, String method) {
-        return resourceMethodMap.getOrDefault(method, Collections.emptyList())
+        return resourceMethods.getOrDefault(method, Collections.emptyList())
                 .stream()
                 .map(m -> match(path, m))
                 .filter(Result::isMatched)
