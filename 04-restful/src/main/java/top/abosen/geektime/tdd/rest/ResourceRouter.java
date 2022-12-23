@@ -10,7 +10,6 @@ import jakarta.ws.rs.core.Response;
 
 import java.lang.reflect.Method;
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -36,9 +35,6 @@ interface ResourceRouter {
     interface SubResourceLocator extends UriHandler {
     }
 
-    interface UriHandler {
-        UriTemplate getUriTemplate();
-    }
 }
 
 class DefaultResourceRouter implements ResourceRouter {
@@ -58,8 +54,8 @@ class DefaultResourceRouter implements ResourceRouter {
 
         List<RootResource> rootResources = this.rootResources;
 
-        return (OutboundResponse) Result.match(path, rootResources, t -> true,
-                        result -> findResourceMethod(result, request, uri))
+        return (OutboundResponse) UriHandlers.match(path, rootResources,
+                        (result, handler) -> findResourceMethod(request, uri, result, handler))
                 .map(m -> callMethod(resourceContext, uri, m)
                         .map(entity -> Response.ok(entity).build())
                         .orElseGet(() -> Response.noContent().build()))
@@ -67,8 +63,9 @@ class DefaultResourceRouter implements ResourceRouter {
                 ;
     }
 
-    private static Optional<ResourceMethod> findResourceMethod(Optional<Result<RootResource>> result, HttpServletRequest request, UriInfoBuilder uri) {
-        return result.flatMap(r -> r.handler().match(r.matched().get(), request.getMethod(),
+    private static Optional<ResourceMethod> findResourceMethod(HttpServletRequest request, UriInfoBuilder uri,
+                                                               Optional<UriTemplate.MatchResult> matched, RootResource handler) {
+       return matched.flatMap(it -> handler.match(it, request.getMethod(),
                 Collections.list(request.getHeaders(HttpHeaders.ACCEPT)).toArray(String[]::new), uri));
     }
 
@@ -135,44 +132,9 @@ class ResourceMethods {
     }
 
     public Optional<ResourceRouter.ResourceMethod> findResourceMethod(String path, String method) {
-        return Result.match(path, resourceMethods.getOrDefault(method, Collections.emptyList()), it -> it.getRemaining() == null);
+        return UriHandlers.match(path, resourceMethods.getOrDefault(method, Collections.emptyList()), it -> it.getRemaining() == null);
     }
 
-}
-
-record Result<T extends ResourceRouter.UriHandler>(
-        Optional<UriTemplate.MatchResult> matched,
-        T handler, Function<UriTemplate.MatchResult, Boolean> matchFunction)
-        implements Comparable<Result<T>> {
-
-    public static <T extends ResourceRouter.UriHandler> Optional<T> match(String path, List<T> handlers, Function<UriTemplate.MatchResult, Boolean> matchFunction) {
-        return match(path, handlers, matchFunction, it -> it.map(Result::handler));
-    }
-
-    public static <T extends ResourceRouter.UriHandler, R> Optional<R> match(
-            String path, List<T> handlers,
-            Function<UriTemplate.MatchResult, Boolean> matchFunction,
-            Function<Optional<Result<T>>, Optional<R>> mapper
-    ) {
-        return mapper.apply(handlers.stream()
-                .map(handler -> new Result<>(handler.getUriTemplate().match(path), handler, matchFunction))
-                .filter(Result::isMatched)
-                .sorted()
-                .findFirst());
-    }
-
-    public static <T extends ResourceRouter.UriHandler> Optional<T> match(String path, List<T> handlers) {
-        return match(path, handlers, r -> true);
-    }
-
-    public boolean isMatched() {
-        return matched.map(matchFunction).orElse(false);
-    }
-
-    @Override
-    public int compareTo(Result<T> o) {
-        return matched.flatMap(x -> o.matched.map(x::compareTo)).orElse(0);
-    }
 }
 
 class DefaultResourceMethod implements ResourceRouter.ResourceMethod {
@@ -221,7 +183,7 @@ class SubResourceLocators {
     }
 
     public Optional<ResourceRouter.SubResourceLocator> findSubResource(String path) {
-        return Result.match(path, subResourceLocators);
+        return UriHandlers.match(path, subResourceLocators);
     }
 
     static class DefaultSubResourceLocator implements ResourceRouter.SubResourceLocator {
