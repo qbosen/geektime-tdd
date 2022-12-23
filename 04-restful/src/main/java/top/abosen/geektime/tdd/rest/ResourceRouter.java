@@ -56,9 +56,10 @@ class DefaultResourceRouter implements ResourceRouter {
         String path = request.getServletPath();
         UriInfoBuilder uri = runtime.createUriInfoBuilder(request);
 
-        return (OutboundResponse) rootResources.stream().map(resource -> match(path, resource))
-                .filter(Result::isMatched).sorted().findFirst()
-                .flatMap(result -> result.findResourceMethod(request, uri))
+        List<RootResource> rootResources = this.rootResources;
+
+        return (OutboundResponse) Result.match(path, rootResources, t -> true,
+                        result -> findResourceMethod(result, request, uri))
                 .map(m -> callMethod(resourceContext, uri, m)
                         .map(entity -> Response.ok(entity).build())
                         .orElseGet(() -> Response.noContent().build()))
@@ -66,28 +67,13 @@ class DefaultResourceRouter implements ResourceRouter {
                 ;
     }
 
+    private static Optional<ResourceMethod> findResourceMethod(Optional<Result<RootResource>> result, HttpServletRequest request, UriInfoBuilder uri) {
+        return result.flatMap(r -> r.handler().match(r.matched().get(), request.getMethod(),
+                Collections.list(request.getHeaders(HttpHeaders.ACCEPT)).toArray(String[]::new), uri));
+    }
+
     private static Optional<? extends GenericEntity<?>> callMethod(ResourceContext resourceContext, UriInfoBuilder uri, ResourceMethod m) {
         return Optional.ofNullable(m.call(resourceContext, uri));
-    }
-
-    private static Result match(String path, RootResource it) {
-        return new Result(it.getUriTemplate().match(path), it);
-    }
-
-    record Result(Optional<UriTemplate.MatchResult> matched, RootResource resource) implements Comparable<Result> {
-        private Optional<ResourceMethod> findResourceMethod(HttpServletRequest request, UriInfoBuilder uri) {
-            return matched.flatMap(it -> resource.match(it, request.getMethod(),
-                    Collections.list(request.getHeaders(HttpHeaders.ACCEPT)).toArray(String[]::new), uri));
-        }
-
-        public boolean isMatched() {
-            return matched.isPresent();
-        }
-
-        @Override
-        public int compareTo(Result o) {
-            return matched.flatMap(x -> o.matched.map(x::compareTo)).orElse(0);
-        }
     }
 
 }
@@ -160,12 +146,19 @@ record Result<T extends ResourceRouter.UriHandler>(
         implements Comparable<Result<T>> {
 
     public static <T extends ResourceRouter.UriHandler> Optional<T> match(String path, List<T> handlers, Function<UriTemplate.MatchResult, Boolean> matchFunction) {
-        return handlers.stream()
+        return match(path, handlers, matchFunction, it -> it.map(Result::handler));
+    }
+
+    public static <T extends ResourceRouter.UriHandler, R> Optional<R> match(
+            String path, List<T> handlers,
+            Function<UriTemplate.MatchResult, Boolean> matchFunction,
+            Function<Optional<Result<T>>, Optional<R>> mapper
+    ) {
+        return mapper.apply(handlers.stream()
                 .map(handler -> new Result<>(handler.getUriTemplate().match(path), handler, matchFunction))
                 .filter(Result::isMatched)
                 .sorted()
-                .findFirst()
-                .map(Result::handler);
+                .findFirst());
     }
 
     public static <T extends ResourceRouter.UriHandler> Optional<T> match(String path, List<T> handlers) {
