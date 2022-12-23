@@ -2,6 +2,7 @@ package top.abosen.geektime.tdd.rest;
 
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -9,6 +10,7 @@ import org.mockito.Mockito;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.when;
 
 /**
  * @author qiubaisen
@@ -27,23 +29,33 @@ public class RootResourceTest {
     @ParameterizedTest(name = "{3}")
     @CsvSource(
             textBlock = """
-                    GET,        /messages/hello,        Messages.hello,          GET and URI match
-                    GET,        /messages/ah,           Messages.ah,             GET and URI match
-                    POST,       /messages/hello,        Messages.postHello,      POST and URI match
-                    PUT,        /messages/hello,        Messages.putHello,       PUT and URI match
-                    DELETE,     /messages/hello,        Messages.deleteHello,    DELETE and URI match
-                    PATCH,      /messages/hello,        Messages.patchHello,     PATCH and URI match
-                    HEAD,       /messages/hello,        Messages.headHello,      HEAD and URI match
-                    OPTIONS,    /messages/hello,        Messages.optionsHello,   OPTIONS and URI match
-                    GET,        /messages/topics/1234,  Messages.topic1234,      GET with multiply choice
-                    GET,        /messages,              Messages.get,            GET and resource method without Path
+                    GET,        /messages/hello,        Messages.hello,         GET and URI match
+                    GET,        /messages/ah,           Messages.ah,            GET and URI match
+                    POST,       /messages/hello,        Messages.postHello,     POST and URI match
+                    PUT,        /messages/hello,        Messages.putHello,      PUT and URI match
+                    DELETE,     /messages/hello,        Messages.deleteHello,   DELETE and URI match
+                    PATCH,      /messages/hello,        Messages.patchHello,    PATCH and URI match
+                    HEAD,       /messages/hello,        Messages.headHello,     HEAD and URI match
+                    OPTIONS,    /messages/hello,        Messages.optionsHello,  OPTIONS and URI match
+                    GET,        /messages/topics/1234,  Messages.topic1234,     GET with multiply choice
+                    GET,        /messages,              Messages.get,           GET and resource method without Path
                     """
     )
-    void should_match_resource_method(String httpMethod, String path, String resourceMethod, String testName) {
+    void should_match_resource_method_in_root_resource(String httpMethod, String path, String resourceMethod, String testName) {
         ResourceRouter.RootResource resource = new RootResourceClass(Messages.class);
         UriTemplate.MatchResult result = resource.getUriTemplate().match(path).get();
         ResourceRouter.ResourceMethod method = resource.match(result, httpMethod, new String[]{MediaType.TEXT_PLAIN}, Mockito.mock(UriInfoBuilder.class)).get();
         assertEquals(resourceMethod, method.toString());
+    }
+
+    @Test
+    @Disabled
+    void should_match_resource_method_in_sub_resource() {
+        ResourceRouter.Resource resource = new SubResourceClass(new Message());
+        UriTemplate.MatchResult result = Mockito.mock(UriTemplate.MatchResult.class);
+        when(result.getRemaining()).thenReturn("/content");
+
+        assertTrue(resource.match(result, "GET", new String[]{MediaType.TEXT_PLAIN}, Mockito.mock(UriInfoBuilder.class)).isPresent());
     }
 
 
@@ -151,6 +163,20 @@ public class RootResourceTest {
         @Produces(MediaType.TEXT_PLAIN)
         public String topic1234() {
             return "topic1234";
+        }
+
+        @Path("/{id}")
+        public Message getById() {
+            return new Message();
+        }
+    }
+
+    static class Message {
+        @GET
+        @Path("/content")
+        @Produces(MediaType.TEXT_PLAIN)
+        public String content() {
+            return "content";
         }
     }
 
