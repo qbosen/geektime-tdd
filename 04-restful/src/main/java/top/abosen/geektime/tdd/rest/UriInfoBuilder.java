@@ -5,9 +5,13 @@ package top.abosen.geektime.tdd.rest;
  * @date 2022/12/15
  */
 public interface UriInfoBuilder {
-    void pushMatchedPath(String path);
+//    void pushMatchedPath(String path);
+//
+//    void addParameter(String name, String value);
+//
+//    String getUnmatchedPath();
 
-    void addParameter(String name, String value);
+    Object getLastMatchedResource();
 
-    String getUnmatchedPath();
+    void addMatchedResource(Object resource);
 }
