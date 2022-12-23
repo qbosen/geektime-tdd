@@ -34,6 +34,10 @@ interface ResourceRouter {
 
         String getHttpMethod();
     }
+
+    interface SubResourceLocator {
+        UriTemplate getUriTemplate();
+    }
 }
 
 class DefaultResourceRouter implements ResourceRouter {
@@ -203,5 +207,40 @@ class DefaultResourceMethod implements ResourceRouter.ResourceMethod {
     @Override
     public String toString() {
         return method.getDeclaringClass().getSimpleName() + "." + method.getName();
+    }
+}
+
+class SubResourceLocators {
+
+    private final List<ResourceRouter.SubResourceLocator> subResourceLocators;
+
+    public SubResourceLocators(Method[] methods) {
+        subResourceLocators = Arrays.stream(methods).filter(method -> method.isAnnotationPresent(Path.class) &&
+                        Arrays.stream(method.getAnnotations()).noneMatch(a -> a.annotationType().isAnnotationPresent(HttpMethod.class)))
+                .map(DefaultSubResourceLocator::new).collect(Collectors.toList());
+    }
+
+    public Optional<ResourceRouter.SubResourceLocator> findSubResource(String path) {
+        return subResourceLocators.stream().filter(locator -> locator.getUriTemplate().match(path).isPresent()).findFirst();
+    }
+
+    static class DefaultSubResourceLocator implements ResourceRouter.SubResourceLocator {
+        private final Method method;
+        private final UriTemplate uriTemplate;
+
+        public DefaultSubResourceLocator(Method method) {
+            this.method = method;
+            uriTemplate = new PathTemplate(method.getAnnotation(Path.class).value());
+        }
+
+        @Override
+        public UriTemplate getUriTemplate() {
+            return uriTemplate;
+        }
+
+        @Override
+        public String toString() {
+            return method.getDeclaringClass().getSimpleName() + "." + method.getName();
+        }
     }
 }
