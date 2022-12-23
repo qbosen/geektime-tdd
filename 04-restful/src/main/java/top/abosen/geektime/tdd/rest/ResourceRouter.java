@@ -10,6 +10,7 @@ import jakarta.ws.rs.core.Response;
 
 import java.lang.reflect.Method;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -23,19 +24,19 @@ interface ResourceRouter {
         Optional<ResourceMethod> match(UriTemplate.MatchResult result, String method, String[] mediaType, UriInfoBuilder builder);
     }
 
-    interface RootResource extends Resource {
-        UriTemplate getUriTemplate();
+    interface RootResource extends Resource, UriHandler {
     }
 
-    interface ResourceMethod {
+    interface ResourceMethod extends UriHandler {
         GenericEntity<?> call(ResourceContext resourceContext, UriInfoBuilder builder);
-
-        UriTemplate getUriTemplate();
 
         String getHttpMethod();
     }
 
-    interface SubResourceLocator {
+    interface SubResourceLocator extends UriHandler {
+    }
+
+    interface UriHandler {
         UriTemplate getUriTemplate();
     }
 }
@@ -147,31 +148,37 @@ class ResourceMethods {
                 .collect(Collectors.groupingBy(ResourceRouter.ResourceMethod::getHttpMethod));
     }
 
-    private static Result match(String path, ResourceRouter.ResourceMethod method) {
-        return new Result(method.getUriTemplate().match(path), method);
+    public Optional<ResourceRouter.ResourceMethod> findResourceMethod(String path, String method) {
+        return Result.match(path, resourceMethods.getOrDefault(method, Collections.emptyList()), it -> it.getRemaining() == null);
     }
 
-    public Optional<ResourceRouter.ResourceMethod> findResourceMethod(String path, String method) {
-        return resourceMethods.getOrDefault(method, Collections.emptyList())
-                .stream()
-                .map(m -> match(path, m))
+}
+
+record Result<T extends ResourceRouter.UriHandler>(
+        Optional<UriTemplate.MatchResult> matched,
+        T handler, Function<UriTemplate.MatchResult, Boolean> matchFunction)
+        implements Comparable<Result<T>> {
+
+    public static <T extends ResourceRouter.UriHandler> Optional<T> match(String path, List<T> handlers, Function<UriTemplate.MatchResult, Boolean> matchFunction) {
+        return handlers.stream()
+                .map(handler -> new Result<>(handler.getUriTemplate().match(path), handler, matchFunction))
                 .filter(Result::isMatched)
                 .sorted()
-                .map(Result::resourceMethod)
-                .findFirst();
+                .findFirst()
+                .map(Result::handler);
     }
 
-    record Result(Optional<UriTemplate.MatchResult> matched,
-                  ResourceRouter.ResourceMethod resourceMethod) implements Comparable<Result> {
+    public static <T extends ResourceRouter.UriHandler> Optional<T> match(String path, List<T> handlers) {
+        return match(path, handlers, r -> true);
+    }
 
-        public boolean isMatched() {
-            return matched.filter(it -> it.getRemaining() == null).isPresent();
-        }
+    public boolean isMatched() {
+        return matched.map(matchFunction).orElse(false);
+    }
 
-        @Override
-        public int compareTo(Result o) {
-            return matched.flatMap(x -> o.matched.map(x::compareTo)).orElse(0);
-        }
+    @Override
+    public int compareTo(Result<T> o) {
+        return matched.flatMap(x -> o.matched.map(x::compareTo)).orElse(0);
     }
 }
 
@@ -221,7 +228,7 @@ class SubResourceLocators {
     }
 
     public Optional<ResourceRouter.SubResourceLocator> findSubResource(String path) {
-        return subResourceLocators.stream().filter(locator -> locator.getUriTemplate().match(path).isPresent()).findFirst();
+        return Result.match(path, subResourceLocators);
     }
 
     static class DefaultSubResourceLocator implements ResourceRouter.SubResourceLocator {
