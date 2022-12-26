@@ -191,10 +191,6 @@ class SubResourceLocators {
                 .map(DefaultSubResourceLocator::new).collect(Collectors.toList());
     }
 
-    public Optional<ResourceRouter.SubResourceLocator> findSubResource(String path) {
-        return UriHandlers.match(path, subResourceLocators);
-    }
-
     public Optional<ResourceRouter.ResourceMethod> findSubResourceMethod(String path, String method, String[] mediaTypes, ResourceContext resourceContext, UriInfoBuilder builder) {
         return UriHandlers.match(path, subResourceLocators, (result, locator) ->
                 locator.getSubResource(resourceContext, builder).match(result.get(), method, mediaTypes, resourceContext, builder)
