@@ -20,7 +20,7 @@ interface ResourceRouter {
     OutboundResponse dispatch(HttpServletRequest request, ResourceContext resourceContext);
 
     interface Resource {
-        Optional<ResourceMethod> match(UriTemplate.MatchResult result, String method, String[] mediaType, ResourceContext resourceContext, UriInfoBuilder builder);
+        Optional<ResourceMethod> match(UriTemplate.MatchResult result, String httpMethod, String[] mediaType, ResourceContext resourceContext, UriInfoBuilder builder);
     }
 
     interface RootResource extends Resource, UriHandler {
@@ -30,10 +30,6 @@ interface ResourceRouter {
         GenericEntity<?> call(ResourceContext resourceContext, UriInfoBuilder builder);
 
         String getHttpMethod();
-    }
-
-    interface SubResourceLocator extends UriHandler {
-        Resource getSubResource(ResourceContext resourceContext, UriInfoBuilder builder);
     }
 
 }
@@ -91,12 +87,12 @@ class RootResourceClass implements ResourceRouter.RootResource {
     }
 
     @Override
-    public Optional<ResourceRouter.ResourceMethod> match(UriTemplate.MatchResult result, String method, String[] mediaType, ResourceContext resourceContext, UriInfoBuilder builder) {
+    public Optional<ResourceRouter.ResourceMethod> match(UriTemplate.MatchResult result, String httpMethod, String[] mediaType, ResourceContext resourceContext, UriInfoBuilder builder) {
         String remaining = Optional.ofNullable(result.getRemaining()).orElse("");
         Object resource = resourceContext.getResource(resourceClass);
         builder.addMatchedResource(resource);
-        return resourceMethods.findResourceMethod(remaining, method).or(() ->
-                subResourceLocators.findSubResourceMethod(remaining, method, mediaType, resourceContext, builder));
+        return resourceMethods.findResourceMethod(remaining, httpMethod).or(() ->
+                subResourceLocators.findSubResourceMethod(remaining, httpMethod, mediaType, resourceContext, builder));
     }
 
     @Override
@@ -107,24 +103,6 @@ class RootResourceClass implements ResourceRouter.RootResource {
 
 }
 
-class SubResourceClass implements ResourceRouter.Resource {
-    private final ResourceMethods resourceMethods;
-    private Object subResource;
-    private SubResourceLocators subResourceLocators;
-
-    public SubResourceClass(Object subResource) {
-        this.subResource = subResource;
-        this.resourceMethods = new ResourceMethods(subResource.getClass().getMethods());
-        this.subResourceLocators = new SubResourceLocators(subResource.getClass().getMethods());
-    }
-
-    @Override
-    public Optional<ResourceRouter.ResourceMethod> match(UriTemplate.MatchResult result, String method, String[] mediaType, ResourceContext resourceContext, UriInfoBuilder builder) {
-        String remaining = Optional.ofNullable(result.getRemaining()).orElse("");
-        return resourceMethods.findResourceMethod(remaining, method).or(() ->
-                subResourceLocators.findSubResourceMethod(remaining, method, mediaType, resourceContext, builder));
-    }
-}
 
 class ResourceMethods {
     private final Map<String, List<ResourceRouter.ResourceMethod>> resourceMethods;
@@ -183,25 +161,25 @@ class DefaultResourceMethod implements ResourceRouter.ResourceMethod {
 
 class SubResourceLocators {
 
-    private final List<ResourceRouter.SubResourceLocator> subResourceLocators;
+    private final List<ResourceRouter.RootResource> rootResources;
 
     public SubResourceLocators(Method[] methods) {
-        subResourceLocators = Arrays.stream(methods).filter(method -> method.isAnnotationPresent(Path.class) &&
+        rootResources = Arrays.stream(methods).filter(method -> method.isAnnotationPresent(Path.class) &&
                         Arrays.stream(method.getAnnotations()).noneMatch(a -> a.annotationType().isAnnotationPresent(HttpMethod.class)))
-                .map(DefaultSubResourceLocator::new).collect(Collectors.toList());
+                .map(SubResourceLocator::new).collect(Collectors.toList());
     }
 
     public Optional<ResourceRouter.ResourceMethod> findSubResourceMethod(String path, String method, String[] mediaTypes, ResourceContext resourceContext, UriInfoBuilder builder) {
-        return UriHandlers.match(path, subResourceLocators, (result, locator) ->
-                locator.getSubResource(resourceContext, builder).match(result.get(), method, mediaTypes, resourceContext, builder)
+        return UriHandlers.match(path, rootResources, (result, locator) ->
+                locator.match(result.get(), method, mediaTypes, resourceContext, builder)
         );
     }
 
-    static class DefaultSubResourceLocator implements ResourceRouter.SubResourceLocator {
+    static class SubResourceLocator implements ResourceRouter.RootResource {
         private final Method method;
         private final UriTemplate uriTemplate;
 
-        public DefaultSubResourceLocator(Method method) {
+        public SubResourceLocator(Method method) {
             this.method = method;
             uriTemplate = new PathTemplate(method.getAnnotation(Path.class).value());
         }
@@ -217,14 +195,33 @@ class SubResourceLocators {
         }
 
         @Override
-        public ResourceRouter.Resource getSubResource(ResourceContext resourceContext, UriInfoBuilder builder) {
+        public Optional<ResourceRouter.ResourceMethod> match(UriTemplate.MatchResult result, String httpMethod, String[] mediaType, ResourceContext resourceContext, UriInfoBuilder builder) {
             Object resource = builder.getLastMatchedResource();
             try {
                 Object subResource = method.invoke(resource);
                 builder.addMatchedResource(subResource);
-                return new SubResourceClass(subResource);
+                return new SubResourceClass(subResource).match(result, httpMethod, mediaType, resourceContext, builder);
             } catch (Exception e) {
                 throw new RuntimeException(e);
+            }
+        }
+
+        public static class SubResourceClass implements ResourceRouter.Resource {
+            private final ResourceMethods resourceMethods;
+            private Object subResource;
+            private SubResourceLocators subResourceLocators;
+
+            public SubResourceClass(Object subResource) {
+                this.subResource = subResource;
+                this.resourceMethods = new ResourceMethods(subResource.getClass().getMethods());
+                this.subResourceLocators = new SubResourceLocators(subResource.getClass().getMethods());
+            }
+
+            @Override
+            public Optional<ResourceRouter.ResourceMethod> match(UriTemplate.MatchResult result, String httpMethod, String[] mediaType, ResourceContext resourceContext, UriInfoBuilder builder) {
+                String remaining = Optional.ofNullable(result.getRemaining()).orElse("");
+                return resourceMethods.findResourceMethod(remaining, httpMethod).or(() ->
+                        subResourceLocators.findSubResourceMethod(remaining, httpMethod, mediaType, resourceContext, builder));
             }
         }
     }
