@@ -9,7 +9,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.mockito.Mockito;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -34,7 +33,7 @@ public class RootResourceTest {
 
     @Test
     void should_get_uri_template_from_path_annotation() {
-        ResourceRouter.RootResource resource = new RootResourceClass(Messages.class);
+        ResourceRouter.Resource resource = new ResourceHandler(Messages.class);
         UriTemplate uriTemplate = resource.getUriTemplate();
 
         assertTrue(uriTemplate.match("/messages/hello").isPresent());
@@ -50,21 +49,11 @@ public class RootResourceTest {
     )
     void should_match_resource_method_in_root_resource(String httpMethod, String path, String resourceMethod, String testName) {
         UriInfoBuilder builder = new StubUriInfoBuilder();
-        ResourceRouter.RootResource resource = new RootResourceClass(Messages.class);
+        ResourceRouter.Resource resource = new ResourceHandler(Messages.class);
         UriTemplate.MatchResult result = resource.getUriTemplate().match(path).get();
         ResourceRouter.ResourceMethod method = resource.match(result, httpMethod, new String[]{MediaType.TEXT_PLAIN}, context, builder).get();
         assertEquals(resourceMethod, method.toString());
     }
-
-    @Test
-    void should_match_resource_method_in_sub_resource() {
-        ResourceRouter.Resource resource = new SubResourceLocators.SubResourceLocator.SubResourceClass(new Message());
-        UriTemplate.MatchResult result = Mockito.mock(UriTemplate.MatchResult.class);
-        when(result.getRemaining()).thenReturn("/content");
-
-        assertTrue(resource.match(result, "GET", new String[]{MediaType.TEXT_PLAIN}, context, Mockito.mock(UriInfoBuilder.class)).isPresent());
-    }
-
 
     @ParameterizedTest(name = "{2}")
     @CsvSource(textBlock = """
@@ -73,7 +62,7 @@ public class RootResourceTest {
             """)
     void should_return_empty_if_not_matched_in_root_resource(String httpMethod, String uri, String testName) {
         UriInfoBuilder builder = new StubUriInfoBuilder();
-        ResourceRouter.RootResource resource = new RootResourceClass(Messages.class);
+        ResourceRouter.Resource resource = new ResourceHandler(Messages.class);
         UriTemplate.MatchResult result = resource.getUriTemplate().match(uri).get();
         assertTrue(resource.match(result, httpMethod, new String[]{MediaType.TEXT_PLAIN}, context, builder).isEmpty());
     }
@@ -83,7 +72,7 @@ public class RootResourceTest {
 
     @Test
     void should_add_last_match_resource_to_uri_info_builder() {
-        ResourceRouter.RootResource resource = new RootResourceClass(Messages.class);
+        ResourceRouter.Resource resource = new ResourceHandler(Messages.class);
         UriTemplate.MatchResult result = resource.getUriTemplate().match("/messages").get();
         StubUriInfoBuilder uriInfoBuilder = new StubUriInfoBuilder();
         resource.match(result, "GET", new String[]{MediaType.TEXT_PLAIN}, context, uriInfoBuilder).get();

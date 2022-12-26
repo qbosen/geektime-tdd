@@ -109,8 +109,8 @@ public class ResourceDispatcherTest {
         assertEquals(Response.Status.NO_CONTENT.getStatusCode(), response.getStatus());
     }
 
-    private ResourceRouter.RootResource rootResource(StubUriTemplate stub) {
-        ResourceRouter.RootResource rootResource = mock(ResourceRouter.RootResource.class);
+    private ResourceRouter.Resource rootResource(StubUriTemplate stub) {
+        ResourceRouter.Resource rootResource = mock(ResourceRouter.Resource.class);
         when(rootResource.getUriTemplate()).thenReturn(stub.uriTemplate);
         when(rootResource.match(same(stub.result), eq("GET"), eq(new String[]{MediaType.WILDCARD}), same(context), eq(builder))).thenReturn(Optional.empty());
 
@@ -123,8 +123,8 @@ public class ResourceDispatcherTest {
         return new StubUriTemplate(unmatchedUriTemplate, null);
     }
 
-    private ResourceRouter.RootResource rootResource(StubUriTemplate stub, ResourceRouter.ResourceMethod method) {
-        ResourceRouter.RootResource rootResource = mock(ResourceRouter.RootResource.class);
+    private ResourceRouter.Resource rootResource(StubUriTemplate stub, ResourceRouter.ResourceMethod method) {
+        ResourceRouter.Resource rootResource = mock(ResourceRouter.Resource.class);
         when(rootResource.getUriTemplate()).thenReturn(stub.uriTemplate);
         when(rootResource.match(same(stub.result), eq("GET"), eq(new String[]{MediaType.WILDCARD}), same(context), eq(builder))).thenReturn(Optional.of(method));
         return rootResource;
