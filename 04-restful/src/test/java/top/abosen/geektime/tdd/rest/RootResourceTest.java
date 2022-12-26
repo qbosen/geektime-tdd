@@ -43,13 +43,16 @@ public class RootResourceTest {
 
     @ParameterizedTest(name = "{3}")
     @CsvSource(textBlock = """
-            GET,        /messages,          Messages.get,       Map to resource methods
+            GET,        /messages,              Messages.get,       Map to resource method
+            GET,        /messages/1/content,    Message.content,    Map to sub-resource method
+            GET,        /messages/1/body,       MessageBody.get,    Map to sub-sub-resource method
             """
     )
     void should_match_resource_method_in_root_resource(String httpMethod, String path, String resourceMethod, String testName) {
+        UriInfoBuilder builder = new StubUriInfoBuilder();
         ResourceRouter.RootResource resource = new RootResourceClass(Messages.class);
         UriTemplate.MatchResult result = resource.getUriTemplate().match(path).get();
-        ResourceRouter.ResourceMethod method = resource.match(result, httpMethod, new String[]{MediaType.TEXT_PLAIN}, context, Mockito.mock(UriInfoBuilder.class)).get();
+        ResourceRouter.ResourceMethod method = resource.match(result, httpMethod, new String[]{MediaType.TEXT_PLAIN}, context, builder).get();
         assertEquals(resourceMethod, method.toString());
     }
 
@@ -63,17 +66,16 @@ public class RootResourceTest {
     }
 
 
-    //TODO if sub resource Locator matches uri, using it to do follow up matching
-
-    //TODO if no method / sub resource Locator matches, return 404
     @ParameterizedTest(name = "{2}")
     @CsvSource(textBlock = """
             GET,        /messages/hello,        No matched resource method
+            GET,        /messages/1/header,     No matched sub-resource method
             """)
     void should_return_empty_if_not_matched_in_root_resource(String httpMethod, String uri, String testName) {
+        UriInfoBuilder builder = new StubUriInfoBuilder();
         ResourceRouter.RootResource resource = new RootResourceClass(Messages.class);
         UriTemplate.MatchResult result = resource.getUriTemplate().match(uri).get();
-        assertTrue(resource.match(result, httpMethod, new String[]{MediaType.TEXT_PLAIN}, context, Mockito.mock(UriInfoBuilder.class)).isEmpty());
+        assertTrue(resource.match(result, httpMethod, new String[]{MediaType.TEXT_PLAIN}, context, builder).isEmpty());
     }
 
     //TODO if resource class does not have a path annotation, throw illegal argument
@@ -97,6 +99,10 @@ public class RootResourceTest {
             return "messages";
         }
 
+        @Path("/{id:[0-9]+}")
+        public Message getById() {
+            return new Message();
+        }
     }
 
     static class Message {
@@ -106,6 +112,18 @@ public class RootResourceTest {
         public String content() {
             return "content";
         }
+
+        @Path("/body")
+        public MessageBody messageBody(){
+            return new MessageBody();
+        }
     }
 
+    static class MessageBody {
+        @GET
+        @Produces(MediaType.TEXT_PLAIN)
+        public String get() {
+            return "messageBody";
+        }
+    }
 }
