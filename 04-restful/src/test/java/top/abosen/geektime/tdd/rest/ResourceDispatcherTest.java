@@ -112,7 +112,7 @@ public class ResourceDispatcherTest {
     private ResourceRouter.RootResource rootResource(StubUriTemplate stub) {
         ResourceRouter.RootResource rootResource = mock(ResourceRouter.RootResource.class);
         when(rootResource.getUriTemplate()).thenReturn(stub.uriTemplate);
-        when(rootResource.match(same(stub.result), eq("GET"), eq(new String[]{MediaType.WILDCARD}), eq(builder))).thenReturn(Optional.empty());
+        when(rootResource.match(same(stub.result), eq("GET"), eq(new String[]{MediaType.WILDCARD}), same(context), eq(builder))).thenReturn(Optional.empty());
 
         return rootResource;
     }
@@ -126,7 +126,7 @@ public class ResourceDispatcherTest {
     private ResourceRouter.RootResource rootResource(StubUriTemplate stub, ResourceRouter.ResourceMethod method) {
         ResourceRouter.RootResource rootResource = mock(ResourceRouter.RootResource.class);
         when(rootResource.getUriTemplate()).thenReturn(stub.uriTemplate);
-        when(rootResource.match(same(stub.result), eq("GET"), eq(new String[]{MediaType.WILDCARD}), eq(builder))).thenReturn(Optional.of(method));
+        when(rootResource.match(same(stub.result), eq("GET"), eq(new String[]{MediaType.WILDCARD}), same(context), eq(builder))).thenReturn(Optional.of(method));
         return rootResource;
     }
 

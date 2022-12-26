@@ -48,7 +48,7 @@ public class SubResourceLocatorsTest {
         ResourceRouter.SubResourceLocator subResourceLocator = locators.findSubResource("/hello").get();
         ResourceRouter.Resource subResource = subResourceLocator.getSubResource(mock(ResourceContext.class), infoBuilder);
 
-        ResourceRouter.ResourceMethod method = subResource.match(result, "GET", new String[]{MediaType.TEXT_PLAIN}, infoBuilder).get();
+        ResourceRouter.ResourceMethod method = subResource.match(result, "GET", new String[]{MediaType.TEXT_PLAIN}, null, infoBuilder).get();
         assertEquals("Message.content", method.toString());
         assertEquals("hello", ((Message) infoBuilder.getLastMatchedResource()).message);
     }
