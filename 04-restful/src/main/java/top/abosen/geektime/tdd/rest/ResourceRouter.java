@@ -3,10 +3,13 @@ package top.abosen.geektime.tdd.rest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.HttpMethod;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.GenericEntity;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -163,8 +166,24 @@ class DefaultResourceMethod implements ResourceRouter.ResourceMethod {
     @Override
     public GenericEntity<?> call(ResourceContext resourceContext, UriInfoBuilder builder) {
         try {
-            Object result = method.invoke(builder.getLastMatchedResource());
-            return new GenericEntity<>(result, method.getGenericReturnType());
+            UriInfo uriInfo = builder.createUriInfo();
+            Object[] parameters = Arrays.stream(method.getParameters()).map(parameter -> {
+                List<String> values;
+                if (parameter.isAnnotationPresent(PathParam.class)) {
+                    String name = parameter.getAnnotation(PathParam.class).value();
+                    values = uriInfo.getPathParameters().get(name);
+                }else {
+                    String name = parameter.getAnnotation(QueryParam.class).value();
+                    values = uriInfo.getQueryParameters().get(name);
+                }
+                String value = values.get(0);
+                if (parameter.getType() == int.class) {
+                    return Integer.parseInt(value);
+                }
+                return value;
+            }).toArray(Object[]::new);
+            Object result = method.invoke(builder.getLastMatchedResource(), parameters);
+            return result == null ? null : new GenericEntity<>(result, method.getGenericReturnType());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
