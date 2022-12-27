@@ -90,7 +90,7 @@ class ResourceMethods {
     }
 
     private Optional<ResourceRouter.ResourceMethod> findAlternative(String remaining, String httpMethod) {
-        return "HEAD".equals(httpMethod) ? findResourceMethod(remaining, "GET") : Optional.empty();
+        return "HEAD".equals(httpMethod) ? findResourceMethod(remaining, "GET").map(HeadResourceMethod::new) : Optional.empty();
     }
 
 
@@ -135,6 +135,28 @@ class DefaultResourceMethod implements ResourceRouter.ResourceMethod {
     }
 }
 
+class HeadResourceMethod implements ResourceRouter.ResourceMethod{
+    private final ResourceRouter.ResourceMethod target;
+
+    HeadResourceMethod(ResourceRouter.ResourceMethod target) {
+        this.target = target;
+    }
+
+    @Override
+    public GenericEntity<?> call(ResourceContext resourceContext, UriInfoBuilder builder) {
+        return null;
+    }
+
+    @Override
+    public String getHttpMethod() {
+        return null;
+    }
+
+    @Override
+    public UriTemplate getUriTemplate() {
+        return null;
+    }
+}
 class SubResourceLocators {
 
     private final List<ResourceRouter.Resource> rootResources;

@@ -2,13 +2,13 @@ package top.abosen.geektime.tdd.rest;
 
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * @author qiubaisen
@@ -50,6 +50,19 @@ public class ResourceMethodsTest {
         String remaining = Optional.ofNullable(result.getRemaining()).orElse("");
         assertTrue(resourceMethods.findResourceMethod(remaining, httpMethod).isEmpty());
     }
+
+    //TODO HEAD
+    @Test
+    void should_convert_get_resource_method_to_head_resource_method() {
+        ResourceMethods resourceMethods = new ResourceMethods(Messages.class.getMethods());
+        UriTemplate.MatchResult result = new PathTemplate("/messages").match("/messages/head").get();
+        String remaining = Optional.ofNullable(result.getRemaining()).orElse("");
+        ResourceRouter.ResourceMethod method = resourceMethods.findResourceMethod(remaining, "HEAD").get();
+
+        assertInstanceOf(HeadResourceMethod.class, method);
+    }
+
+    //TODO OPTIONS
 
     @Path("/missing-messages")
     static class MissingMessages {
