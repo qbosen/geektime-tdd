@@ -53,7 +53,12 @@ class DefaultResourceRouter implements ResourceRouter {
         return (OutboundResponse) UriHandlers.match(path, rootResources,
                         (result, handler) -> findResourceMethod(request, resourceContext, uri, result, handler))
                 .map(m -> callMethod(resourceContext, uri, m)
-                        .map(entity -> Response.ok(entity).build())
+                        .map(entity -> {
+                            if (entity.getEntity() instanceof OutboundResponse) {
+                                return ((OutboundResponse) entity.getEntity());
+                            }
+                            return Response.ok(entity).build();
+                        })
                         .orElseGet(() -> Response.noContent().build()))
                 .orElseGet(() -> Response.status(Response.Status.NOT_FOUND).build())
                 ;
@@ -189,7 +194,7 @@ class HeadResourceMethod implements ResourceRouter.ResourceMethod {
 
     @Override
     public String getHttpMethod() {
-        return target.getHttpMethod();
+        return HttpMethod.HEAD;
     }
 
     @Override
