@@ -144,17 +144,17 @@ class HeadResourceMethod implements ResourceRouter.ResourceMethod{
 
     @Override
     public GenericEntity<?> call(ResourceContext resourceContext, UriInfoBuilder builder) {
-        return null;
+        return target.call(resourceContext, builder);
     }
 
     @Override
     public String getHttpMethod() {
-        return null;
+        return target.getHttpMethod();
     }
 
     @Override
     public UriTemplate getUriTemplate() {
-        return null;
+        return target.getUriTemplate();
     }
 }
 class SubResourceLocators {
