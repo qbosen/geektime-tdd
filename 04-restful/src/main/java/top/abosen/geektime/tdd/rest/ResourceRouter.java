@@ -12,6 +12,7 @@ import java.lang.reflect.Method;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @author qiubaisen
@@ -90,7 +91,12 @@ class ResourceMethods {
     }
 
     private Optional<ResourceRouter.ResourceMethod> findAlternative(String remaining, String httpMethod) {
-        return "HEAD".equals(httpMethod) ? findResourceMethod(remaining, "GET").map(HeadResourceMethod::new) : Optional.empty();
+        if (HttpMethod.HEAD.equals(httpMethod))
+            return findResourceMethod(remaining, HttpMethod.GET).map(HeadResourceMethod::new);
+        if (HttpMethod.OPTIONS.equals(httpMethod)) {
+            return Optional.of(new OptionResourceMethod(remaining));
+        }
+        return Optional.empty();
     }
 
 
@@ -98,6 +104,40 @@ class ResourceMethods {
         return UriHandlers.match(path, resourceMethods.getOrDefault(method, Collections.emptyList()), it -> it.getRemaining() == null);
     }
 
+    class OptionResourceMethod implements ResourceRouter.ResourceMethod {
+
+        private final String path;
+
+        public OptionResourceMethod(String path) {
+            this.path = path;
+        }
+
+        @Override
+        public GenericEntity<?> call(ResourceContext resourceContext, UriInfoBuilder builder) {
+            return new GenericEntity<>(Response.noContent().allow(findAllowedMethod()).build(), Response.class);
+        }
+
+        private Set<String> findAllowedMethod() {
+            Set<String> allowed = Stream.of(HttpMethod.GET, HttpMethod.HEAD, HttpMethod.OPTIONS,
+                            HttpMethod.PUT, HttpMethod.POST, HttpMethod.DELETE, HttpMethod.PATCH)
+                    .filter(method -> findMethods(path, method).isPresent())
+                    .collect(Collectors.toSet());
+            allowed.add(HttpMethod.OPTIONS);
+            if (allowed.contains(HttpMethod.GET)) allowed.add(HttpMethod.HEAD);
+
+            return allowed;
+        }
+
+        @Override
+        public String getHttpMethod() {
+            return null;
+        }
+
+        @Override
+        public UriTemplate getUriTemplate() {
+            return null;
+        }
+    }
 }
 
 class DefaultResourceMethod implements ResourceRouter.ResourceMethod {
@@ -135,7 +175,7 @@ class DefaultResourceMethod implements ResourceRouter.ResourceMethod {
     }
 }
 
-class HeadResourceMethod implements ResourceRouter.ResourceMethod{
+class HeadResourceMethod implements ResourceRouter.ResourceMethod {
     private final ResourceRouter.ResourceMethod target;
 
     HeadResourceMethod(ResourceRouter.ResourceMethod target) {
@@ -156,7 +196,13 @@ class HeadResourceMethod implements ResourceRouter.ResourceMethod{
     public UriTemplate getUriTemplate() {
         return target.getUriTemplate();
     }
+
+    @Override
+    public String toString() {
+        return target.toString();
+    }
 }
+
 class SubResourceLocators {
 
     private final List<ResourceRouter.Resource> rootResources;

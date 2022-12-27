@@ -4,10 +4,7 @@ import jakarta.ws.rs.core.*;
 
 import java.lang.annotation.Annotation;
 import java.net.URI;
-import java.util.Date;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
+import java.util.*;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -21,12 +18,15 @@ public class StubResponseBuilder extends Response.ResponseBuilder {
 
     private Object entity;
     private int status;
+    private Set<String> allowed = new HashSet<>();
 
     @Override
     public Response build() {
         OutboundResponse response = mock(OutboundResponse.class);
         when(response.getGenericEntity()).thenReturn((GenericEntity) entity);
+        when(response.getEntity()).thenReturn(entity);
         when(response.getStatus()).thenReturn(status);
+        when(response.getAllowedMethods()).thenReturn(allowed);
         return response;
     }
 
@@ -64,7 +64,8 @@ public class StubResponseBuilder extends Response.ResponseBuilder {
 
     @Override
     public Response.ResponseBuilder allow(Set<String> methods) {
-        return null;
+        allowed.addAll(methods);
+        return this;
     }
 
     @Override

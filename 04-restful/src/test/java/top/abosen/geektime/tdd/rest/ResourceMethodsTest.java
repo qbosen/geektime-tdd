@@ -1,14 +1,22 @@
 package top.abosen.geektime.tdd.rest;
 
 import jakarta.ws.rs.*;
+import jakarta.ws.rs.container.ResourceContext;
+import jakarta.ws.rs.core.GenericEntity;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.ext.RuntimeDelegate;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.mockito.Mockito;
 
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * @author qiubaisen
@@ -51,7 +59,6 @@ public class ResourceMethodsTest {
         assertTrue(resourceMethods.findResourceMethod(remaining, httpMethod).isEmpty());
     }
 
-    //TODO HEAD
     @Test
     void should_convert_get_resource_method_to_head_resource_method() {
         ResourceMethods resourceMethods = new ResourceMethods(Messages.class.getMethods());
@@ -62,7 +69,48 @@ public class ResourceMethodsTest {
         assertInstanceOf(HeadResourceMethod.class, method);
     }
 
-    //TODO OPTIONS
+    @Test
+    void should_get_options_for_given_uri() {
+        RuntimeDelegate delegate = Mockito.mock(RuntimeDelegate.class);
+        RuntimeDelegate.setInstance(delegate);
+
+        when(delegate.createResponseBuilder()).thenReturn(new StubResponseBuilder());
+        ResourceContext context = mock(ResourceContext.class);
+        UriInfoBuilder builder = mock(UriInfoBuilder.class);
+
+        ResourceMethods resourceMethods = new ResourceMethods(Messages.class.getMethods());
+        UriTemplate.MatchResult result = new PathTemplate("/messages").match("/messages/head").get();
+        String remaining = Optional.ofNullable(result.getRemaining()).orElse("");
+        ResourceRouter.ResourceMethod method = resourceMethods.findResourceMethod(remaining, "OPTIONS").get();
+
+        GenericEntity<?> entity = method.call(context, builder);
+        Response response = (Response) entity.getEntity();
+
+        assertEquals(Response.Status.NO_CONTENT.getStatusCode(), response.getStatus());
+        assertEquals(Set.of(HttpMethod.GET, HttpMethod.HEAD, HttpMethod.OPTIONS), response.getAllowedMethods());
+    }
+
+    @Test
+    void should_not_include_head_in_options_if_given_uri_not_have_get_method() {
+        RuntimeDelegate delegate = Mockito.mock(RuntimeDelegate.class);
+        RuntimeDelegate.setInstance(delegate);
+
+        when(delegate.createResponseBuilder()).thenReturn(new StubResponseBuilder());
+        ResourceContext context = mock(ResourceContext.class);
+        UriInfoBuilder builder = mock(UriInfoBuilder.class);
+
+        ResourceMethods resourceMethods = new ResourceMethods(Messages.class.getMethods());
+        UriTemplate.MatchResult result = new PathTemplate("/messages").match("/messages/no-head").get();
+        String remaining = Optional.ofNullable(result.getRemaining()).orElse("");
+        ResourceRouter.ResourceMethod method = resourceMethods.findResourceMethod(remaining, "OPTIONS").get();
+
+        GenericEntity<?> entity = method.call(context, builder);
+        Response response = (Response) entity.getEntity();
+
+        assertEquals(Response.Status.NO_CONTENT.getStatusCode(), response.getStatus());
+        assertEquals(Set.of(HttpMethod.POST, HttpMethod.OPTIONS), response.getAllowedMethods());
+    }
+
 
     @Path("/missing-messages")
     static class MissingMessages {
@@ -87,6 +135,12 @@ public class ResourceMethodsTest {
         @Produces(MediaType.TEXT_PLAIN)
         public String getHead() {
             return "head";
+        }
+
+        @POST
+        @Path("/no-head")
+        @Produces(MediaType.TEXT_PLAIN)
+        public void postNoHead() {
         }
 
         @GET
