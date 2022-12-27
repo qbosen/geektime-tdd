@@ -183,7 +183,12 @@ class ResourceHandler implements ResourceRouter.Resource {
     private final Function<ResourceContext, Object> resource;
 
     public ResourceHandler(Class<?> resourceClass) {
-        this(resourceClass, new PathTemplate(resourceClass.getAnnotation(Path.class).value()), rc -> rc.getResource(resourceClass));
+        this(resourceClass, new PathTemplate(getTemplate(resourceClass)), rc -> rc.getResource(resourceClass));
+    }
+
+    private static String getTemplate(Class<?> resourceClass) {
+        if(!resourceClass.isAnnotationPresent(Path.class)) throw new IllegalArgumentException();
+        return resourceClass.getAnnotation(Path.class).value();
     }
 
     public ResourceHandler(Object resource, UriTemplate uriTemplate) {

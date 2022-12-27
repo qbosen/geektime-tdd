@@ -1,8 +1,6 @@
 package top.abosen.geektime.tdd.rest;
 
-import jakarta.ws.rs.GET;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.*;
 import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.MediaType;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,8 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -42,9 +39,11 @@ public class RootResourceTest {
 
     @ParameterizedTest(name = "{3}")
     @CsvSource(textBlock = """
-            GET,        /messages,              Messages.get,       Map to resource method
-            GET,        /messages/1/content,    Message.content,    Map to sub-resource method
-            GET,        /messages/1/body,       MessageBody.get,    Map to sub-sub-resource method
+            GET,        /messages,              Messages.get,           Map to resource method
+            HEAD,       /messages,              Messages.head,          Map to resource method
+            OPTIONS,    /messages,              Messages.options,       Map to resource method
+            GET,        /messages/1/content,    Message.content,        Map to sub-resource method
+            GET,        /messages/1/body,       MessageBody.get,        Map to sub-sub-resource method
             """
     )
     void should_match_resource_method_in_root_resource(String httpMethod, String path, String resourceMethod, String testName) {
@@ -67,8 +66,12 @@ public class RootResourceTest {
         assertTrue(resource.match(result, httpMethod, new String[]{MediaType.TEXT_PLAIN}, context, builder).isEmpty());
     }
 
-    //TODO if resource class does not have a path annotation, throw illegal argument
+    @Test
+    void should_throw_illegal_argument_exception_if_root_resource_not_have_path_annotation() {
+        assertThrows(IllegalArgumentException.class, () -> new ResourceHandler(Message.class));
+    }
     //TODO Head and Option special case
+
 
     @Test
     void should_add_last_match_resource_to_uri_info_builder() {
@@ -86,6 +89,21 @@ public class RootResourceTest {
         @Produces(MediaType.TEXT_PLAIN)
         public String get() {
             return "messages";
+        }
+
+        @Path("/special")
+        @GET
+        public String getSpecial() {
+            return "special";
+        }
+
+        @HEAD
+        public void head() {
+        }
+
+        @OPTIONS
+        public void options() {
+
         }
 
         @Path("/{id:[0-9]+}")
