@@ -86,6 +86,15 @@ class ResourceMethods {
     }
 
     public Optional<ResourceRouter.ResourceMethod> findResourceMethod(String path, String method) {
+        return findMethods(path, method).or(() -> findAlternative(path, method));
+    }
+
+    private Optional<ResourceRouter.ResourceMethod> findAlternative(String remaining, String httpMethod) {
+        return "HEAD".equals(httpMethod) ? findResourceMethod(remaining, "GET") : Optional.empty();
+    }
+
+
+    private Optional<ResourceRouter.ResourceMethod> findMethods(String path, String method) {
         return UriHandlers.match(path, resourceMethods.getOrDefault(method, Collections.emptyList()), it -> it.getRemaining() == null);
     }
 
@@ -187,7 +196,7 @@ class ResourceHandler implements ResourceRouter.Resource {
     }
 
     private static String getTemplate(Class<?> resourceClass) {
-        if(!resourceClass.isAnnotationPresent(Path.class)) throw new IllegalArgumentException();
+        if (!resourceClass.isAnnotationPresent(Path.class)) throw new IllegalArgumentException();
         return resourceClass.getAnnotation(Path.class).value();
     }
 
@@ -206,8 +215,8 @@ class ResourceHandler implements ResourceRouter.Resource {
     public Optional<ResourceRouter.ResourceMethod> match(UriTemplate.MatchResult result, String httpMethod, String[] mediaType, ResourceContext resourceContext, UriInfoBuilder builder) {
         String remaining = Optional.ofNullable(result.getRemaining()).orElse("");
         builder.addMatchedResource(resource.apply(resourceContext));
-        return resourceMethods.findResourceMethod(remaining, httpMethod).or(() ->
-                subResourceLocators.findSubResourceMethod(remaining, httpMethod, mediaType, resourceContext, builder));
+        return resourceMethods.findResourceMethod(remaining, httpMethod)
+                .or(() -> subResourceLocators.findSubResourceMethod(remaining, httpMethod, mediaType, resourceContext, builder));
     }
 
     @Override

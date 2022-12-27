@@ -40,8 +40,6 @@ public class RootResourceTest {
     @ParameterizedTest(name = "{3}")
     @CsvSource(textBlock = """
             GET,        /messages,              Messages.get,           Map to resource method
-            HEAD,       /messages,              Messages.head,          Map to resource method
-            OPTIONS,    /messages,              Messages.options,       Map to resource method
             GET,        /messages/1/content,    Message.content,        Map to sub-resource method
             GET,        /messages/1/body,       MessageBody.get,        Map to sub-sub-resource method
             """
@@ -70,8 +68,6 @@ public class RootResourceTest {
     void should_throw_illegal_argument_exception_if_root_resource_not_have_path_annotation() {
         assertThrows(IllegalArgumentException.class, () -> new ResourceHandler(Message.class));
     }
-    //TODO Head and Option special case
-
 
     @Test
     void should_add_last_match_resource_to_uri_info_builder() {
@@ -91,20 +87,6 @@ public class RootResourceTest {
             return "messages";
         }
 
-        @Path("/special")
-        @GET
-        public String getSpecial() {
-            return "special";
-        }
-
-        @HEAD
-        public void head() {
-        }
-
-        @OPTIONS
-        public void options() {
-
-        }
 
         @Path("/{id:[0-9]+}")
         public Message getById() {

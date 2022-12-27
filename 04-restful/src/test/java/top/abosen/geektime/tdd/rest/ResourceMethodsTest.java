@@ -28,6 +28,7 @@ public class ResourceMethodsTest {
                     OPTIONS,    /messages/hello,        Messages.optionsHello,  OPTIONS and URI match
                     GET,        /messages/topics/1234,  Messages.topic1234,     GET with multiply choice
                     GET,        /messages,              Messages.get,           GET and resource method without Path
+                    HEAD,       /messages/head,         Messages.getHead,       HEAD with get resource method
                     """
     )
     void should_match_resource_method_in_root_resource(String httpMethod, String path, String resourceMethod, String testName) {
@@ -66,6 +67,13 @@ public class ResourceMethodsTest {
         @Produces(MediaType.TEXT_PLAIN)
         public String get() {
             return "messages";
+        }
+
+        @GET
+        @Path("/head")
+        @Produces(MediaType.TEXT_PLAIN)
+        public String getHead() {
+            return "head";
         }
 
         @GET
