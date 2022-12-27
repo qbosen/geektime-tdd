@@ -8,6 +8,7 @@ import jakarta.ws.rs.core.GenericEntity;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.function.Function;
@@ -155,13 +156,18 @@ class DefaultResourceMethod implements ResourceRouter.ResourceMethod {
         this.method = method;
         this.uriTemplate = new PathTemplate(Optional.ofNullable(method.getAnnotation(Path.class)).map(Path::value).orElse(""));
         this.httpMethod = Arrays.stream(method.getAnnotations())
-                .map(a -> a.annotationType())
+                .map(Annotation::annotationType)
                 .filter(a -> a.isAnnotationPresent(HttpMethod.class)).findFirst().map(it -> it.getAnnotation(HttpMethod.class).value()).get();
     }
 
     @Override
     public GenericEntity<?> call(ResourceContext resourceContext, UriInfoBuilder builder) {
-        return null;
+        try {
+            Object result = method.invoke(builder.getLastMatchedResource());
+            return new GenericEntity<>(result, method.getGenericReturnType());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
