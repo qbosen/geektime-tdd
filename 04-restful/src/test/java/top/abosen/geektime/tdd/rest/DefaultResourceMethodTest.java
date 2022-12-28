@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 
 import java.lang.reflect.Proxy;
+import java.math.BigDecimal;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -108,6 +109,7 @@ public class DefaultResourceMethodTest {
                 new InjectableTypeTestCase(double.class, "3.25", 3.25d),
                 new InjectableTypeTestCase(byte.class, "111", (byte) 111),
                 new InjectableTypeTestCase(boolean.class, "true", true),
+                new InjectableTypeTestCase(BigDecimal.class, "12345", new BigDecimal("12345")),
                 new InjectableTypeTestCase(String.class, "string", "string")
         );
         List<String> paramTypes = List.of("getPathParam", "getQueryParam");
@@ -133,7 +135,6 @@ public class DefaultResourceMethodTest {
 
 
     //TODO using default converters for path, query, matrix(uri), form, header, cookie(request)
-    //TODO default converters for int, short, float, double, byte, char, String, and boolean
     //TODO default converters for class with converter constructor
     //TODO default converters for class with converter factory
     //TODO default converters for List, Set, SortSet
@@ -169,6 +170,8 @@ public class DefaultResourceMethodTest {
 
         @GET
         String getPathParam(@PathParam("params") boolean value);
+        @GET
+        String getPathParam(@PathParam("params") BigDecimal value);
 
         @GET
         String getPathParam(@PathParam("params") String value);
@@ -190,7 +193,8 @@ public class DefaultResourceMethodTest {
 
         @GET
         String getQueryParam(@QueryParam("params") boolean value);
-
+        @GET
+        String getQueryParam(@QueryParam("params") BigDecimal value);
         @GET
         String getQueryParam(@QueryParam("params") String value);
     }

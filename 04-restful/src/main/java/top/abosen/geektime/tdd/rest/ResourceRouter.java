@@ -12,6 +12,7 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.lang.reflect.Type;
@@ -176,7 +177,7 @@ class DefaultResourceMethod implements ResourceRouter.ResourceMethod {
                             .map(provider -> provider.provide(parameter, uriInfo))
                             .filter(Optional::isPresent)
                             .findFirst()
-                            .flatMap(it -> it.map(values -> converters.get(parameter.getType()).fromString(values)))
+                            .flatMap(it -> it.flatMap(values -> convert(parameter, values)))
                             .orElse(null)
             ).toArray(Object[]::new);
             Object result = method.invoke(builder.getLastMatchedResource(), parameters);
@@ -186,15 +187,12 @@ class DefaultResourceMethod implements ResourceRouter.ResourceMethod {
         }
     }
 
-    private static Map<Type, ValueConverter<?>> converters = Map.of(
-            int.class, singleValued(Integer::parseInt),
-            short.class, singleValued(Short::parseShort),
-            float.class, singleValued(Float::parseFloat),
-            double.class, singleValued(Double::parseDouble),
-            byte.class, singleValued(Byte::parseByte),
-            boolean.class, singleValued(Boolean::parseBoolean),
-            String.class, singleValued(it -> it)
-    );
+    private static Optional<Object> convert(Parameter parameter, List<String> values) {
+        return ConverterPrimitive.convert(parameter, values)
+                .or(() -> ConverterConstructor.convert(parameter.getType(), values.get(0)))
+                ;
+    }
+
     private static ValueProvider pathParam = (parameter, uriInfo) -> Optional.ofNullable(parameter.getAnnotation(PathParam.class))
             .map(annotation -> uriInfo.getPathParameters().get(annotation.value()));
     private static ValueProvider queryParam = (parameter, uriInfo) -> Optional.ofNullable(parameter.getAnnotation(QueryParam.class))
@@ -347,5 +345,35 @@ class ResourceHandler implements ResourceRouter.Resource {
         return uriTemplate;
     }
 
+}
 
+class ConverterPrimitive {
+
+    private static Map<Type, DefaultResourceMethod.ValueConverter<Object>> primitives = Map.of(
+            int.class, singleValued(Integer::parseInt),
+            short.class, singleValued(Short::parseShort),
+            float.class, singleValued(Float::parseFloat),
+            double.class, singleValued(Double::parseDouble),
+            byte.class, singleValued(Byte::parseByte),
+            boolean.class, singleValued(Boolean::parseBoolean),
+            String.class, singleValued(it -> it)
+    );
+
+    public static Optional<Object> convert(Parameter parameter, List<String> values) {
+        return Optional.ofNullable(primitives.get(parameter.getType()))
+                .map(c -> c.fromString(values));
+    }
+}
+
+class ConverterConstructor {
+
+
+    public static <T> Optional<T> convert(Class<T> converter, String value) {
+        try {
+            return Optional.of(converter.getConstructor(String.class).newInstance(value));
+        } catch (IllegalAccessException | IllegalArgumentException | InstantiationException | NoSuchMethodException |
+                 SecurityException | InvocationTargetException e) {
+            return Optional.empty();
+        }
+    }
 }
