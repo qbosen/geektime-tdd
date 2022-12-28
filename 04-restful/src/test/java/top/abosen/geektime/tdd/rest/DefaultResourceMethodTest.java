@@ -11,11 +11,15 @@ import jakarta.ws.rs.core.UriInfo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Proxy;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * @author qiubaisen
@@ -29,9 +33,25 @@ public class DefaultResourceMethodTest {
     private UriInfo uriInfo;
     private MultivaluedHashMap<String, String> parameters;
 
+    private LastCall lastCall;
+
+    record LastCall(String name, List<Object> arguments) {
+
+    }
+
     @BeforeEach
     public void setup() {
-        resource = mock(CallableResourceMethods.class);
+        lastCall = null;
+        resource = (CallableResourceMethods) Proxy.newProxyInstance(this.getClass().getClassLoader(),
+                new Class[]{CallableResourceMethods.class},
+                (proxy, method, args) -> {
+                    lastCall = new LastCall(method.getName() + Arrays.stream(method.getParameters())
+                            .map(it -> it.getType().getSimpleName())
+                            .collect(Collectors.joining(",", "(", ")")),
+                            args == null ? List.of() : List.of(args));
+                    return "getList".equals(method.getName()) ? List.of() : null;
+                });
+
         context = mock(ResourceContext.class);
         builder = mock(UriInfoBuilder.class);
         uriInfo = mock(UriInfo.class);
@@ -45,14 +65,12 @@ public class DefaultResourceMethodTest {
 
     @Test
     void should_call_resource_method() throws Exception {
-        when(resource.get()).thenReturn("resource called");
-        DefaultResourceMethod resourceMethod = getResourceMethod("get");
-        assertEquals(new GenericEntity<>("resource called", String.class), resourceMethod.call(context, builder));
+        getResourceMethod("get").call(context, builder);
+        assertEquals("get()", lastCall.name());
     }
 
     @Test
     void should_use_resource_method_generic_return_type() throws NoSuchMethodException {
-        when(resource.getList()).thenReturn(List.of());
         DefaultResourceMethod resourceMethod = getResourceMethod("getList");
         assertEquals(new GenericEntity<>(List.of(), CallableResourceMethods.class.getMethod("getList").getGenericReturnType()), resourceMethod.call(context, builder));
     }
@@ -61,10 +79,9 @@ public class DefaultResourceMethodTest {
     void should_inject_string_to_path_param() throws NoSuchMethodException {
         DefaultResourceMethod resourceMethod = getResourceMethod("getPathParam", String.class);
         parameters.put("path", List.of("path"));
-
         resourceMethod.call(context, builder);
-
-        verify(resource).getPathParam(eq("path"));
+        assertEquals("getPathParam(String)", lastCall.name);
+        assertEquals(List.of("path"), lastCall.arguments);
     }
 
     @Test
@@ -78,10 +95,10 @@ public class DefaultResourceMethodTest {
     void should_inject_int_to_path_param() throws NoSuchMethodException {
         DefaultResourceMethod resourceMethod = getResourceMethod("getPathParam", int.class);
         parameters.put("path", List.of("1"));
-
         resourceMethod.call(context, builder);
 
-        verify(resource).getPathParam(eq(1));
+        assertEquals("getPathParam(int)", lastCall.name);
+        assertEquals(List.of(1), lastCall.arguments);
     }
 
     @Test
@@ -91,7 +108,8 @@ public class DefaultResourceMethodTest {
 
         resourceMethod.call(context, builder);
 
-        verify(resource).getQueryParam(eq("query"));
+        assertEquals("getQueryParam(String)", lastCall.name);
+        assertEquals(List.of("query"), lastCall.arguments);
     }
 
     @Test
@@ -100,8 +118,8 @@ public class DefaultResourceMethodTest {
         parameters.put("query", List.of("1"));
 
         resourceMethod.call(context, builder);
-
-        verify(resource).getQueryParam(eq(1));
+        assertEquals("getQueryParam(int)", lastCall.name);
+        assertEquals(List.of(1), lastCall.arguments);
     }
 
     //TODO using default converters for path, query, matrix(uri), form, header, cookie(request)
