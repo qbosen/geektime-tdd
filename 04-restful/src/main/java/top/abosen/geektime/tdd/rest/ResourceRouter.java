@@ -188,6 +188,7 @@ class DefaultResourceMethod implements ResourceRouter.ResourceMethod {
 
     private static Map<Type, ValueConverter<?>> converters = Map.of(
             int.class, singleValued(Integer::parseInt),
+            double.class, singleValued(Double::parseDouble),
             String.class, singleValued(it -> it)
     );
     private static ValueProvider pathParam = (parameter, uriInfo) -> Optional.ofNullable(parameter.getAnnotation(PathParam.class))

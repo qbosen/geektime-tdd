@@ -9,10 +9,13 @@ import jakarta.ws.rs.core.GenericEntity;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.UriInfo;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestFactory;
 
-import java.lang.reflect.Parameter;
 import java.lang.reflect.Proxy;
+import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -47,9 +50,10 @@ public class DefaultResourceMethodTest {
                 new Class[]{CallableResourceMethods.class},
                 (proxy, method, args) -> {
                     String name = method.getName();
-                    List<? extends Class<?>> classes = Arrays.stream(method.getParameters()).map(Parameter::getType).toList();
 
-                    lastCall = new LastCall(getMethodName(name, classes), args == null ? List.of() : List.of(args));
+                    lastCall = new LastCall(
+                            getMethodName(name, method.getParameterTypes()),
+                            args == null ? List.of() : List.of(args));
                     return "getList".equals(name) ? List.of() : null;
                 });
 
@@ -64,8 +68,8 @@ public class DefaultResourceMethodTest {
         when(uriInfo.getQueryParameters()).thenReturn(parameters);
     }
 
-    private static String getMethodName(String name, List<? extends Class<?>> classes) {
-        return name + classes.stream()
+    private static String getMethodName(String name, Class<?>... types) {
+        return name + Arrays.stream(types)
                 .map(Class::getSimpleName)
                 .collect(Collectors.joining(",", "(", ")"));
     }
@@ -89,53 +93,40 @@ public class DefaultResourceMethodTest {
         assertNull(resourceMethod.call(context, builder));
     }
 
-    @Test
-    void should_inject_string_to_path_param() throws NoSuchMethodException {
-        String method = "getPathParam";
-        Class<?>[] types = new Class[]{String.class};
-        String parameterValue = "path";
-        String value = "path";
 
-        verifyResourceMethodCalled(method, types, parameterValue, value);
+    record InjectableTypeTestCase(Class<?> type, String string, Object value) {
     }
 
-    private void verifyResourceMethodCalled(String method, Class<?>[] types, String parameterValue, Object value) throws NoSuchMethodException {
-        DefaultResourceMethod resourceMethod = getResourceMethod(method, types);
+
+    @TestFactory
+    public List<DynamicTest> injectTypes() {
+        List<DynamicTest> tests = new ArrayList<>();
+        List<InjectableTypeTestCase> typeCases = List.of(
+                new InjectableTypeTestCase(String.class, "string", "string"),
+                new InjectableTypeTestCase(int.class, "1", 1),
+                new InjectableTypeTestCase(double.class, "3.25", 3.25)
+        );
+        List<String> paramTypes = List.of("getPathParam", "getQueryParam");
+
+        for (String type : paramTypes) {
+            for (InjectableTypeTestCase typeCase : typeCases) {
+                tests.add(DynamicTest.dynamicTest(
+                        MessageFormat.format("should inject {0} to {1}", typeCase.type.getSimpleName(), type),
+                        () -> verifyResourceMethodCalled(type, typeCase.type, typeCase.string, typeCase.value)
+                ));
+            }
+        }
+        return tests;
+    }
+
+    private void verifyResourceMethodCalled(String method, Class<?> type, String parameterValue, Object value) throws NoSuchMethodException {
+        DefaultResourceMethod resourceMethod = getResourceMethod(method, type);
         parameters.put("params", List.of(parameterValue));
         resourceMethod.call(context, builder);
-        assertEquals(getMethodName(method, List.of(types)), lastCall.name);
+        assertEquals(getMethodName(method, type), lastCall.name);
         assertEquals(List.of(value), lastCall.arguments);
     }
 
-    @Test
-    void should_inject_int_to_path_param() throws NoSuchMethodException {
-        String method = "getPathParam";
-        Class<?>[]  types = new Class[]{int.class};
-        String parameterValue = "1";
-        int value = 1;
-
-        verifyResourceMethodCalled(method, types, parameterValue, value);
-    }
-
-    @Test
-    void should_inject_string_to_query_param() throws NoSuchMethodException {
-        String method = "getQueryParam";
-        Class<?>[] types = new Class[]{String.class};
-        String parameterValue = "query";
-        String value = "query";
-
-        verifyResourceMethodCalled(method, types, parameterValue, value);
-    }
-
-    @Test
-    void should_inject_int_to_query_param() throws NoSuchMethodException {
-        String methodName = "getQueryParam";
-        Class<?>[]  types = new Class[]{int.class};
-        String parameterValue = "1";
-        int value = 1;
-
-        verifyResourceMethodCalled(methodName, types, parameterValue, value);
-    }
 
     //TODO using default converters for path, query, matrix(uri), form, header, cookie(request)
     //TODO default converters for int, short, float, double, byte, char, String, and boolean
@@ -164,10 +155,16 @@ public class DefaultResourceMethodTest {
         String getPathParam(@PathParam("params") int value);
 
         @GET
+        String getPathParam(@PathParam("params") double value);
+
+        @GET
         String getQueryParam(@QueryParam("params") String value);
 
         @GET
         String getQueryParam(@QueryParam("params") int value);
+
+        @GET
+        String getQueryParam(@QueryParam("params") double value);
     }
 
     private static DefaultResourceMethod getResourceMethod(String methodName, Class... types) throws NoSuchMethodException {
