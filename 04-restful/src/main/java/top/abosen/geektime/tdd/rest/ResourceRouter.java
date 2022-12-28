@@ -13,10 +13,14 @@ import jakarta.ws.rs.core.UriInfo;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
+import java.lang.reflect.Type;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static top.abosen.geektime.tdd.rest.DefaultResourceMethod.ValueConverter.singleValued;
 
 /**
  * @author qiubaisen
@@ -167,27 +171,43 @@ class DefaultResourceMethod implements ResourceRouter.ResourceMethod {
     public GenericEntity<?> call(ResourceContext resourceContext, UriInfoBuilder builder) {
         try {
             UriInfo uriInfo = builder.createUriInfo();
-            Object[] parameters = Arrays.stream(method.getParameters()).map(parameter -> {
-                List<String> values;
-                if (parameter.isAnnotationPresent(PathParam.class)) {
-                    String name = parameter.getAnnotation(PathParam.class).value();
-                    values = uriInfo.getPathParameters().get(name);
-                }else {
-                    String name = parameter.getAnnotation(QueryParam.class).value();
-                    values = uriInfo.getQueryParameters().get(name);
-                }
-                String value = values.get(0);
-                if (parameter.getType() == int.class) {
-                    return Integer.parseInt(value);
-                }
-                return value;
-            }).toArray(Object[]::new);
+            Object[] parameters = Arrays.stream(method.getParameters()).map(parameter ->
+                    providers.stream()
+                            .map(provider -> provider.provide(parameter, uriInfo))
+                            .filter(Optional::isPresent)
+                            .findFirst()
+                            .flatMap(it -> it.map(values -> converters.get(parameter.getType()).fromString(values)))
+                            .orElse(null)
+            ).toArray(Object[]::new);
             Object result = method.invoke(builder.getLastMatchedResource(), parameters);
             return result == null ? null : new GenericEntity<>(result, method.getGenericReturnType());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
+
+    private static Map<Type, ValueConverter<?>> converters = Map.of(
+            int.class, singleValued(Integer::parseInt),
+            String.class, singleValued(it -> it)
+    );
+    private static ValueProvider pathParam = (parameter, uriInfo) -> Optional.ofNullable(parameter.getAnnotation(PathParam.class))
+            .map(annotation -> uriInfo.getPathParameters().get(annotation.value()));
+    private static ValueProvider queryParam = (parameter, uriInfo) -> Optional.ofNullable(parameter.getAnnotation(QueryParam.class))
+            .map(annotation -> uriInfo.getQueryParameters().get(annotation.value()));
+    private static final List<ValueProvider> providers = List.of(pathParam, queryParam);
+
+    interface ValueProvider {
+        Optional<List<String>> provide(Parameter parameter, UriInfo uriInfo);
+    }
+
+    interface ValueConverter<T> {
+        T fromString(List<String> values);
+
+        static <T> ValueConverter<T> singleValued(Function<String, T> converter) {
+            return list -> converter.apply(list.get(0));
+        }
+    }
+
 
     @Override
     public UriTemplate getUriTemplate() {
