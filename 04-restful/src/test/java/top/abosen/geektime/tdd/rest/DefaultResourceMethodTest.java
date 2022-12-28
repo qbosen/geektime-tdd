@@ -102,9 +102,13 @@ public class DefaultResourceMethodTest {
     public List<DynamicTest> injectTypes() {
         List<DynamicTest> tests = new ArrayList<>();
         List<InjectableTypeTestCase> typeCases = List.of(
-                new InjectableTypeTestCase(String.class, "string", "string"),
                 new InjectableTypeTestCase(int.class, "1", 1),
-                new InjectableTypeTestCase(double.class, "3.25", 3.25)
+                new InjectableTypeTestCase(short.class, "3", (short) 3),
+                new InjectableTypeTestCase(float.class, "8.33", 8.33f),
+                new InjectableTypeTestCase(double.class, "3.25", 3.25d),
+                new InjectableTypeTestCase(byte.class, "111", (byte) 111),
+                new InjectableTypeTestCase(boolean.class, "true", true),
+                new InjectableTypeTestCase(String.class, "string", "string")
         );
         List<String> paramTypes = List.of("getPathParam", "getQueryParam");
 
@@ -149,22 +153,46 @@ public class DefaultResourceMethodTest {
         List<String> getList();
 
         @GET
-        String getPathParam(@PathParam("params") String value);
+        String getPathParam(@PathParam("params") int value);
 
         @GET
-        String getPathParam(@PathParam("params") int value);
+        String getPathParam(@PathParam("params") short value);
+
+        @GET
+        String getPathParam(@PathParam("params") float value);
 
         @GET
         String getPathParam(@PathParam("params") double value);
 
         @GET
-        String getQueryParam(@QueryParam("params") String value);
+        String getPathParam(@PathParam("params") byte value);
+
+        @GET
+        String getPathParam(@PathParam("params") boolean value);
+
+        @GET
+        String getPathParam(@PathParam("params") String value);
 
         @GET
         String getQueryParam(@QueryParam("params") int value);
 
         @GET
+        String getQueryParam(@QueryParam("params") short value);
+
+        @GET
+        String getQueryParam(@QueryParam("params") float value);
+
+        @GET
         String getQueryParam(@QueryParam("params") double value);
+
+        @GET
+        String getQueryParam(@QueryParam("params") byte value);
+
+        @GET
+        String getQueryParam(@QueryParam("params") boolean value);
+
+        @GET
+        String getQueryParam(@QueryParam("params") String value);
     }
 
     private static DefaultResourceMethod getResourceMethod(String methodName, Class... types) throws NoSuchMethodException {
