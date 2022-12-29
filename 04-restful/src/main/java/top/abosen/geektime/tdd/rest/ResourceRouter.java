@@ -3,25 +3,17 @@ package top.abosen.geektime.tdd.rest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.HttpMethod;
 import jakarta.ws.rs.Path;
-import jakarta.ws.rs.PathParam;
-import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.GenericEntity;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.UriInfo;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
-import java.lang.reflect.Type;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import static top.abosen.geektime.tdd.rest.DefaultResourceMethod.ValueConverter.singleValued;
 
 /**
  * @author qiubaisen
@@ -170,58 +162,8 @@ class DefaultResourceMethod implements ResourceRouter.ResourceMethod {
 
     @Override
     public GenericEntity<?> call(ResourceContext resourceContext, UriInfoBuilder builder) {
-        try {
-            UriInfo uriInfo = builder.createUriInfo();
-            Object[] parameters = Arrays.stream(method.getParameters()).map(parameter ->
-                            injectParameter(parameter, uriInfo)
-                                    .or(()->injectContext(parameter, resourceContext,uriInfo))
-                                    .orElse(null)
-                    )
-                    .toArray(Object[]::new);
-            Object result = method.invoke(builder.getLastMatchedResource(), parameters);
-            return result == null ? null : new GenericEntity<>(result, method.getGenericReturnType());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static Optional<Object> injectContext(Parameter parameter, ResourceContext resourceContext, UriInfo uriInfo) {
-        if(parameter.getType().equals(ResourceContext.class)) return Optional.of(resourceContext);
-        if(parameter.getType().equals(UriInfo.class)) return Optional.of(uriInfo);
-        return Optional.of(resourceContext.getResource(parameter.getType()));
-    }
-
-    private static Optional<Object> injectParameter(Parameter parameter, UriInfo uriInfo) {
-        return providers.stream()
-                .map(provider -> provider.provide(parameter, uriInfo))
-                .filter(Optional::isPresent)
-                .findFirst()
-                .flatMap(it -> it.flatMap(values -> convert(parameter, values)));
-    }
-
-    private static Optional<Object> convert(Parameter parameter, List<String> values) {
-        return ConverterPrimitive.convert(parameter, values)
-                .or(() -> ConverterConstructor.convert(parameter.getType(), values.get(0)))
-                .or(() -> ConverterFactory.convert(parameter.getType(), values.get(0)))
-                ;
-    }
-
-    private static ValueProvider pathParam = (parameter, uriInfo) -> Optional.ofNullable(parameter.getAnnotation(PathParam.class))
-            .map(annotation -> uriInfo.getPathParameters().get(annotation.value()));
-    private static ValueProvider queryParam = (parameter, uriInfo) -> Optional.ofNullable(parameter.getAnnotation(QueryParam.class))
-            .map(annotation -> uriInfo.getQueryParameters().get(annotation.value()));
-    private static final List<ValueProvider> providers = List.of(pathParam, queryParam);
-
-    interface ValueProvider {
-        Optional<List<String>> provide(Parameter parameter, UriInfo uriInfo);
-    }
-
-    interface ValueConverter<T> {
-        T fromString(List<String> values);
-
-        static <T> ValueConverter<T> singleValued(Function<String, T> converter) {
-            return list -> converter.apply(list.get(0));
-        }
+        Object result = MethodInvoker.invoke(method, resourceContext, builder);
+        return result == null ? null : new GenericEntity<>(result, method.getGenericReturnType());
     }
 
 
@@ -358,44 +300,4 @@ class ResourceHandler implements ResourceRouter.Resource {
         return uriTemplate;
     }
 
-}
-
-class ConverterPrimitive {
-
-    private static Map<Type, DefaultResourceMethod.ValueConverter<Object>> primitives = Map.of(
-            int.class, singleValued(Integer::parseInt),
-            short.class, singleValued(Short::parseShort),
-            float.class, singleValued(Float::parseFloat),
-            double.class, singleValued(Double::parseDouble),
-            byte.class, singleValued(Byte::parseByte),
-            boolean.class, singleValued(Boolean::parseBoolean),
-            String.class, singleValued(it -> it)
-    );
-
-    public static Optional<Object> convert(Parameter parameter, List<String> values) {
-        return Optional.ofNullable(primitives.get(parameter.getType()))
-                .map(c -> c.fromString(values));
-    }
-}
-
-class ConverterConstructor {
-
-    public static <T> Optional<T> convert(Class<T> converter, String value) {
-        try {
-            return Optional.of(converter.getConstructor(String.class).newInstance(value));
-        } catch (IllegalAccessException | IllegalArgumentException | InstantiationException | NoSuchMethodException |
-                 SecurityException | InvocationTargetException e) {
-            return Optional.empty();
-        }
-    }
-}
-
-class ConverterFactory {
-    public static Optional<?> convert(Class<?> converter, String value) {
-        try {
-            return Optional.of(converter.getMethod("valueOf", String.class).invoke(null, value));
-        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-            return Optional.empty();
-        }
-    }
 }
