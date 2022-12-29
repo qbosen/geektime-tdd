@@ -173,18 +173,30 @@ class DefaultResourceMethod implements ResourceRouter.ResourceMethod {
         try {
             UriInfo uriInfo = builder.createUriInfo();
             Object[] parameters = Arrays.stream(method.getParameters()).map(parameter ->
-                    providers.stream()
-                            .map(provider -> provider.provide(parameter, uriInfo))
-                            .filter(Optional::isPresent)
-                            .findFirst()
-                            .flatMap(it -> it.flatMap(values -> convert(parameter, values)))
-                            .orElse(null)
-            ).toArray(Object[]::new);
+                            injectParameter(parameter, uriInfo)
+                                    .or(()->injectContext(parameter, resourceContext,uriInfo))
+                                    .orElse(null)
+                    )
+                    .toArray(Object[]::new);
             Object result = method.invoke(builder.getLastMatchedResource(), parameters);
             return result == null ? null : new GenericEntity<>(result, method.getGenericReturnType());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static Optional<Object> injectContext(Parameter parameter, ResourceContext resourceContext, UriInfo uriInfo) {
+        if(parameter.getType().equals(ResourceContext.class)) return Optional.of(resourceContext);
+        if(parameter.getType().equals(UriInfo.class)) return Optional.of(uriInfo);
+        return Optional.of(resourceContext.getResource(parameter.getType()));
+    }
+
+    private static Optional<Object> injectParameter(Parameter parameter, UriInfo uriInfo) {
+        return providers.stream()
+                .map(provider -> provider.provide(parameter, uriInfo))
+                .filter(Optional::isPresent)
+                .findFirst()
+                .flatMap(it -> it.flatMap(values -> convert(parameter, values)));
     }
 
     private static Optional<Object> convert(Parameter parameter, List<String> values) {

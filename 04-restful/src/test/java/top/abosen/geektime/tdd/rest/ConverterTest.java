@@ -36,12 +36,3 @@ public class ConverterTest {
     }
 }
 
-class NoConverter {
-    NoConverter valueOf(String value){
-        return new NoConverter();
-    }
-}
-
-enum Converter{
-    Primitive, Constructor, Factory
-}

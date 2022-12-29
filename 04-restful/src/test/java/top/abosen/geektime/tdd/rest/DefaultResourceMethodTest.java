@@ -5,6 +5,7 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.container.ResourceContext;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.GenericEntity;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.UriInfo;
@@ -23,6 +24,7 @@ import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -39,6 +41,7 @@ public class DefaultResourceMethodTest {
     private MultivaluedHashMap<String, String> parameters;
 
     private LastCall lastCall;
+    private SomeServiceInContext service;
 
     record LastCall(String name, List<Object> arguments) {
 
@@ -61,12 +64,14 @@ public class DefaultResourceMethodTest {
         context = mock(ResourceContext.class);
         builder = mock(UriInfoBuilder.class);
         uriInfo = mock(UriInfo.class);
+        service = mock(SomeServiceInContext.class);
         parameters = new MultivaluedHashMap<>();
 
         when(builder.getLastMatchedResource()).thenReturn(resource);
         when(builder.createUriInfo()).thenReturn(uriInfo);
         when(uriInfo.getPathParameters()).thenReturn(parameters);
         when(uriInfo.getQueryParameters()).thenReturn(parameters);
+        when(context.getResource(eq(SomeServiceInContext.class))).thenReturn(service);
     }
 
     private static String getMethodName(String name, Class<?>... types) {
@@ -100,7 +105,7 @@ public class DefaultResourceMethodTest {
 
 
     @TestFactory
-    public List<DynamicTest> injectTypes() {
+    public List<DynamicTest> inject_convertable_types() {
         List<DynamicTest> tests = new ArrayList<>();
         List<InjectableTypeTestCase> typeCases = List.of(
                 new InjectableTypeTestCase(int.class, "1", 1),
@@ -126,9 +131,30 @@ public class DefaultResourceMethodTest {
         return tests;
     }
 
+    @TestFactory
+    public List<DynamicTest> inject_context_object() {
+        List<DynamicTest> tests = new ArrayList<>();
+        List<InjectableTypeTestCase> typeCases = List.of(
+                new InjectableTypeTestCase(SomeServiceInContext.class, "N/A", service),
+                new InjectableTypeTestCase(ResourceContext.class, "N/A", context),
+                new InjectableTypeTestCase(UriInfo.class, "N/A", uriInfo)
+        );
+        List<String> paramTypes = List.of("getContext");
+
+        for (String type : paramTypes) {
+            for (InjectableTypeTestCase typeCase : typeCases) {
+                tests.add(DynamicTest.dynamicTest(
+                        MessageFormat.format("should inject {0} to getContext {1}", typeCase.type.getSimpleName(), type),
+                        () -> verifyResourceMethodCalled(type, typeCase.type, typeCase.string, typeCase.value)
+                ));
+            }
+        }
+        return tests;
+    }
+
     private void verifyResourceMethodCalled(String method, Class<?> type, String parameterValue, Object value) throws NoSuchMethodException {
         DefaultResourceMethod resourceMethod = getResourceMethod(method, type);
-        parameters.put("params", List.of(parameterValue));
+        parameters.put("param", List.of(parameterValue));
         resourceMethod.call(context, builder);
         assertEquals(getMethodName(method, type), lastCall.name);
         assertEquals(List.of(value), lastCall.arguments);
@@ -136,10 +162,7 @@ public class DefaultResourceMethodTest {
 
 
     //TODO using default converters for path, query, matrix(uri), form, header, cookie(request)
-    //TODO default converters for List, Set, SortSet
-    //TODO injection - get injectable from resource context
-    //TODO injection - can inject resource context itself
-    //TODO injection - can inject uri info built from uri info builder
+    //TODO default converters for List, Set, SortSet, Array
 
     interface CallableResourceMethods {
 
@@ -153,56 +176,83 @@ public class DefaultResourceMethodTest {
         List<String> getList();
 
         @GET
-        String getPathParam(@PathParam("params") int value);
+        String getPathParam(@PathParam("param") int value);
 
         @GET
-        String getPathParam(@PathParam("params") short value);
+        String getPathParam(@PathParam("param") short value);
 
         @GET
-        String getPathParam(@PathParam("params") float value);
+        String getPathParam(@PathParam("param") float value);
 
         @GET
-        String getPathParam(@PathParam("params") double value);
+        String getPathParam(@PathParam("param") double value);
 
         @GET
-        String getPathParam(@PathParam("params") byte value);
+        String getPathParam(@PathParam("param") byte value);
 
         @GET
-        String getPathParam(@PathParam("params") boolean value);
-        @GET
-        String getPathParam(@PathParam("params") BigDecimal value);
-        @GET
-        String getPathParam(@PathParam("params") Converter value);
+        String getPathParam(@PathParam("param") boolean value);
 
         @GET
-        String getPathParam(@PathParam("params") String value);
+        String getPathParam(@PathParam("param") BigDecimal value);
 
         @GET
-        String getQueryParam(@QueryParam("params") int value);
+        String getPathParam(@PathParam("param") Converter value);
 
         @GET
-        String getQueryParam(@QueryParam("params") short value);
+        String getPathParam(@PathParam("param") String value);
 
         @GET
-        String getQueryParam(@QueryParam("params") float value);
+        String getQueryParam(@QueryParam("param") int value);
 
         @GET
-        String getQueryParam(@QueryParam("params") double value);
+        String getQueryParam(@QueryParam("param") short value);
 
         @GET
-        String getQueryParam(@QueryParam("params") byte value);
+        String getQueryParam(@QueryParam("param") float value);
 
         @GET
-        String getQueryParam(@QueryParam("params") boolean value);
+        String getQueryParam(@QueryParam("param") double value);
+
         @GET
-        String getQueryParam(@QueryParam("params") BigDecimal value);
+        String getQueryParam(@QueryParam("param") byte value);
+
         @GET
-        String getQueryParam(@QueryParam("params") Converter value);
+        String getQueryParam(@QueryParam("param") boolean value);
+
         @GET
-        String getQueryParam(@QueryParam("params") String value);
+        String getQueryParam(@QueryParam("param") BigDecimal value);
+
+        @GET
+        String getQueryParam(@QueryParam("param") Converter value);
+
+        @GET
+        String getQueryParam(@QueryParam("param") String value);
+
+        @GET
+        String getContext(@Context SomeServiceInContext service);
+
+        @GET
+        String getContext(@Context ResourceContext context);
+
+        @GET
+        String getContext(@Context UriInfo uriInfo);
     }
 
     private static DefaultResourceMethod getResourceMethod(String methodName, Class... types) throws NoSuchMethodException {
         return new DefaultResourceMethod(CallableResourceMethods.class.getMethod(methodName, types));
     }
+}
+
+class NoConverter {
+    NoConverter valueOf(String value) {
+        return new NoConverter();
+    }
+}
+
+enum Converter {
+    Primitive, Constructor, Factory
+}
+
+interface SomeServiceInContext {
 }
