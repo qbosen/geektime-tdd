@@ -110,6 +110,7 @@ public class DefaultResourceMethodTest {
                 new InjectableTypeTestCase(byte.class, "111", (byte) 111),
                 new InjectableTypeTestCase(boolean.class, "true", true),
                 new InjectableTypeTestCase(BigDecimal.class, "12345", new BigDecimal("12345")),
+                new InjectableTypeTestCase(Converter.class, "Factory", Converter.Factory),
                 new InjectableTypeTestCase(String.class, "string", "string")
         );
         List<String> paramTypes = List.of("getPathParam", "getQueryParam");
@@ -135,8 +136,6 @@ public class DefaultResourceMethodTest {
 
 
     //TODO using default converters for path, query, matrix(uri), form, header, cookie(request)
-    //TODO default converters for class with converter constructor
-    //TODO default converters for class with converter factory
     //TODO default converters for List, Set, SortSet
     //TODO injection - get injectable from resource context
     //TODO injection - can inject resource context itself
@@ -172,6 +171,8 @@ public class DefaultResourceMethodTest {
         String getPathParam(@PathParam("params") boolean value);
         @GET
         String getPathParam(@PathParam("params") BigDecimal value);
+        @GET
+        String getPathParam(@PathParam("params") Converter value);
 
         @GET
         String getPathParam(@PathParam("params") String value);
@@ -195,6 +196,8 @@ public class DefaultResourceMethodTest {
         String getQueryParam(@QueryParam("params") boolean value);
         @GET
         String getQueryParam(@QueryParam("params") BigDecimal value);
+        @GET
+        String getQueryParam(@QueryParam("params") Converter value);
         @GET
         String getQueryParam(@QueryParam("params") String value);
     }
