@@ -248,12 +248,8 @@ class SubResourceLocators {
 
         @Override
         public Optional<ResourceRouter.ResourceMethod> match(UriTemplate.MatchResult result, String httpMethod, String[] mediaType, ResourceContext resourceContext, UriInfoBuilder builder) {
-            try {
-                Object subResource = MethodInvoker.invoke(method, resourceContext, builder);
-                return new ResourceHandler(subResource, uriTemplate).match(result, httpMethod, mediaType, resourceContext, builder);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+            Object subResource = MethodInvoker.invoke(method, resourceContext, builder);
+            return new ResourceHandler(subResource, uriTemplate).match(result, httpMethod, mediaType, resourceContext, builder);
         }
 
     }

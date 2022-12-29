@@ -3,6 +3,7 @@ package top.abosen.geektime.tdd.rest;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.container.ResourceContext;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.UriInfo;
 
 import java.lang.reflect.InvocationTargetException;
@@ -39,12 +40,17 @@ class MethodInvoker {
                     )
                     .toArray(Object[]::new);
             return method.invoke(builder.getLastMatchedResource(), parameters);
-        } catch (Exception e) {
+        } catch (IllegalAccessException | IllegalArgumentException e) {
             throw new RuntimeException(e);
+        } catch (InvocationTargetException e) {
+            Throwable targetException = e.getTargetException();
+            if (targetException instanceof RuntimeException re) throw re;
+            throw new RuntimeException(targetException);
         }
     }
 
     private static Optional<Object> injectContext(Parameter parameter, ResourceContext resourceContext, UriInfo uriInfo) {
+        if (!parameter.isAnnotationPresent(Context.class)) return Optional.empty();
         if (parameter.getType().equals(ResourceContext.class)) return Optional.of(resourceContext);
         if (parameter.getType().equals(UriInfo.class)) return Optional.of(uriInfo);
         return Optional.of(resourceContext.getResource(parameter.getType()));

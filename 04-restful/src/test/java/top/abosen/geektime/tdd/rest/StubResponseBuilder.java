@@ -26,6 +26,7 @@ public class StubResponseBuilder extends Response.ResponseBuilder {
         when(response.getGenericEntity()).thenReturn((GenericEntity) entity);
         when(response.getEntity()).thenReturn(entity);
         when(response.getStatus()).thenReturn(status);
+        when(response.getStatusInfo()).thenReturn(Response.Status.fromStatusCode(status));
         when(response.getAllowedMethods()).thenReturn(allowed);
         when(response.getHeaders()).thenReturn(new MultivaluedHashMap<>());
         return response;
@@ -38,6 +39,7 @@ public class StubResponseBuilder extends Response.ResponseBuilder {
 
     @Override
     public Response.ResponseBuilder status(int status) {
+        this.status = status;
         return this;
     }
 
