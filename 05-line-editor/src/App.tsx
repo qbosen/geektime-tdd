@@ -1,34 +1,26 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
 import './App.css'
+import {Layer, Line, Stage} from "react-konva";
+import {useEffect, useRef} from "react";
+import Konva from "konva";
+import {LineEditor} from "./line-editor";
 
 function App() {
-  const [count, setCount] = useState(0)
+    const line = useRef<Konva.Line>(null);
+    const layer = useRef<Konva.Layer>(null);
 
-  return (
-    <div className="App">
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src="/vite.svg" className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://reactjs.org" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </div>
-  )
+    const editor = new LineEditor();
+    useEffect(() => {
+        if (line.current && layer.current) {
+            editor.attach(line.current);
+            layer.current.add(editor);
+        }
+    }, []);
+
+    return (<Stage width={window.innerWidth} height={window.innerHeight}>
+        <Layer ref={layer}>
+            <Line ref={line} points={[30, 75, 123, 234, 315, 225, 104, 127]} strokeWidth={4} stroke={'black'}/>
+        </Layer>
+    </Stage>)
 }
 
 export default App

@@ -38,7 +38,7 @@ export class LineEditor extends Konva.Group {
     }
 
     private create(index: number, type: string) {
-        let point = new Konva.Circle({name: `${index}-${type}`, radius: 10, draggable: true});
+        let point = new Konva.Circle({name: `${index}-${type}`, radius: 10, draggable: true, fill:'red'});
         if (type === 'anchor') {
             point.on('dragmove', (e) => {
                 let points = this.line!.points();
