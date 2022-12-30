@@ -56,6 +56,8 @@ export class LineEditor extends Konva.Group {
                 let points = this.line!.points();
                 points.splice(index * 2, 0, e.target.x(), e.target.y());
                 this.line!.points(points);
+                e.target.stopDrag();
+                e.target.getParent().findOne(`.${index}-anchor`).startDrag(e);
             });
         }
         this.add(point);

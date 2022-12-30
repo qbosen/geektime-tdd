@@ -1,4 +1,4 @@
-import {describe, expect, it} from "vitest"
+import {describe, expect, it, vi} from "vitest"
 import Konva from "konva";
 import {LineEditor} from "../src/line-editor";
 import {DragEvent} from "react";
@@ -63,6 +63,11 @@ describe('Line editor', () => {
         let control = editor.findOne('.1-control');
         expect(control.draggable()).toEqual(true);
 
+        let stopDrag = vi.spyOn(control, 'stopDrag');
+        let startDrag = vi.spyOn(editor.findOne('.1-anchor'), 'startDrag');
+        startDrag.mockImplementation(() => {
+        });
+
         control.x(25).y(30);
         control.fire('dragmove', {} as DragEvent);
 
@@ -70,6 +75,8 @@ describe('Line editor', () => {
         expect(editor.findOne('.1-control').getAttrs()).toMatchObject({x: 17.5, y: 20});
         expect(editor.findOne('.2-control').getAttrs()).toMatchObject({x: 27.5, y: 30});
 
+        expect(stopDrag).toHaveBeenCalled();
+        expect(startDrag).toHaveBeenCalled();
     });
 
     it('should remove anchor when double click anchor', () => {
