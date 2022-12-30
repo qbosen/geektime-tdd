@@ -3,6 +3,7 @@ package top.abosen.geektime.tdd.rest;
 import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.UriInfo;
+import jakarta.ws.rs.ext.RuntimeDelegate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
@@ -30,7 +31,9 @@ public abstract class InjectableCallerTest {
     protected MultivaluedHashMap<String, String> parameters;
     protected DefaultResourceMethodTest.LastCall lastCall;
     protected SomeServiceInContext service;
+    protected RuntimeDelegate delegate;
     private Object resource;
+
 
     protected static String getMethodName(String name, Class<?>... types) {
         return name + Arrays.stream(types)
@@ -48,12 +51,16 @@ public abstract class InjectableCallerTest {
         uriInfo = mock(UriInfo.class);
         service = mock(SomeServiceInContext.class);
         parameters = new MultivaluedHashMap<>();
+        delegate = mock(RuntimeDelegate.class);
+
+        RuntimeDelegate.setInstance(delegate);
 
         when(builder.getLastMatchedResource()).thenReturn(resource);
         when(builder.createUriInfo()).thenReturn(uriInfo);
         when(uriInfo.getPathParameters()).thenReturn(parameters);
         when(uriInfo.getQueryParameters()).thenReturn(parameters);
         when(context.getResource(eq(SomeServiceInContext.class))).thenReturn(service);
+        when(delegate.createResponseBuilder()).thenReturn(new StubResponseBuilder());
     }
 
     protected abstract Object initResource();

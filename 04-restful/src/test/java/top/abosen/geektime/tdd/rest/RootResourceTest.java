@@ -1,12 +1,17 @@
 package top.abosen.geektime.tdd.rest;
 
-import jakarta.ws.rs.*;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.UriInfo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.eq;
@@ -74,9 +79,23 @@ public class RootResourceTest {
         ResourceRouter.Resource resource = new ResourceHandler(Messages.class);
         UriTemplate.MatchResult result = resource.getUriTemplate().match("/messages").get();
         StubUriInfoBuilder uriInfoBuilder = new StubUriInfoBuilder();
-        resource.match(result, "GET", new String[]{MediaType.TEXT_PLAIN}, context, uriInfoBuilder).get();
+        resource.match(result, "GET", new String[]{MediaType.TEXT_PLAIN}, context, uriInfoBuilder);
 
         assertTrue(uriInfoBuilder.getLastMatchedResource() instanceof Messages);
+    }
+
+    @Test
+    void should_add_last_match_path_parameters_to_uri_info_builder() {
+        StubUriInfoBuilder uriInfoBuilder = new StubUriInfoBuilder();
+
+        ResourceRouter.Resource resource = new ResourceHandler(Messages.class);
+        UriTemplate.MatchResult result = resource.getUriTemplate().match("/messages/1").get();
+        resource.match(result, "GET", new String[]{MediaType.TEXT_PLAIN}, context, uriInfoBuilder);
+
+        assertTrue(uriInfoBuilder.getLastMatchedResource() instanceof Message);
+        UriInfo uriInfo = uriInfoBuilder.createUriInfo();
+
+        assertEquals(List.of("1"), uriInfo.getPathParameters().get("id"));
     }
 
     @Path("/messages")
@@ -103,7 +122,7 @@ public class RootResourceTest {
         }
 
         @Path("/body")
-        public MessageBody messageBody(){
+        public MessageBody messageBody() {
             return new MessageBody();
         }
     }

@@ -248,8 +248,33 @@ class SubResourceLocators {
 
         @Override
         public Optional<ResourceRouter.ResourceMethod> match(UriTemplate.MatchResult result, String httpMethod, String[] mediaType, ResourceContext resourceContext, UriInfoBuilder builder) {
+            builder.addMatchedPathParameter(result.getMatchedPathParameters());
             Object subResource = MethodInvoker.invoke(method, resourceContext, builder);
-            return new ResourceHandler(subResource, uriTemplate).match(result, httpMethod, mediaType, resourceContext, builder);
+            return new ResourceHandler(subResource, uriTemplate).match(excludePathParameter(result), httpMethod, mediaType, resourceContext, builder);
+        }
+
+        private static UriTemplate.MatchResult excludePathParameter(UriTemplate.MatchResult result) {
+            return new UriTemplate.MatchResult() {
+                @Override
+                public String getMatched() {
+                    return result.getMatched();
+                }
+
+                @Override
+                public String getRemaining() {
+                    return result.getRemaining();
+                }
+
+                @Override
+                public Map<String, String> getMatchedPathParameters() {
+                    return new HashMap<>();
+                }
+
+                @Override
+                public int compareTo(UriTemplate.MatchResult o) {
+                    return result.compareTo(o);
+                }
+            };
         }
 
     }
@@ -286,6 +311,7 @@ class ResourceHandler implements ResourceRouter.Resource {
     public Optional<ResourceRouter.ResourceMethod> match(UriTemplate.MatchResult result, String httpMethod, String[] mediaType, ResourceContext resourceContext, UriInfoBuilder builder) {
         String remaining = Optional.ofNullable(result.getRemaining()).orElse("");
         builder.addMatchedResource(resource.apply(resourceContext));
+        builder.addMatchedPathParameter(result.getMatchedPathParameters());
         return resourceMethods.findResourceMethod(remaining, httpMethod)
                 .or(() -> subResourceLocators.findSubResourceMethod(remaining, httpMethod, mediaType, resourceContext, builder));
     }

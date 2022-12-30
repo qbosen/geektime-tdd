@@ -39,7 +39,6 @@ public class IntegrationTest extends ServletTest {
     private ResourceContext resourceContext;
     private Providers providers;
     private RuntimeDelegate delegate;
-    protected UriInfo uriInfo;
 
 
     @Override
@@ -59,8 +58,7 @@ public class IntegrationTest extends ServletTest {
 
     @BeforeEach
     void before() {
-        uriInfo = mock(UriInfo.class);
-        when(runtime.createUriInfoBuilder(any())).thenReturn(new StubUriInfoBuilder(uriInfo));
+        when(runtime.createUriInfoBuilder(any())).thenReturn(new StubUriInfoBuilder());
 
         delegate = mock(RuntimeDelegate.class);
         RuntimeDelegate.setInstance(delegate);
@@ -106,20 +104,12 @@ public class IntegrationTest extends ServletTest {
 
     @Test
     void should_return_404_if_user_not_exist() {
-        MultivaluedHashMap<String, String> parameters = new MultivaluedHashMap<>();
-        parameters.put("id", List.of("zhang-san"));
-        when(uriInfo.getPathParameters()).thenReturn(parameters);
-
         HttpResponse<String> response = get("/users/zhang-san");
         assertEquals(404, response.statusCode());
     }
 
     @Test
     void should_return_to_string_of_user_if_user_exist() {
-        MultivaluedHashMap<String, String> parameters = new MultivaluedHashMap<>();
-        parameters.put("id", List.of("john-smith"));
-        when(uriInfo.getPathParameters()).thenReturn(parameters);
-
         HttpResponse<String> response = get("/users/john-smith");
         assertEquals(200, response.statusCode());
         assertEquals(new User("john-smith", new UserData("John Smith", "john.smith@email.com")).toString(), response.body());

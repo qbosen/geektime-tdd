@@ -1,9 +1,6 @@
 package top.abosen.geektime.tdd.rest;
 
-import jakarta.ws.rs.GET;
-import jakarta.ws.rs.POST;
-import jakarta.ws.rs.PathParam;
-import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.*;
 import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.GenericEntity;
@@ -14,8 +11,7 @@ import java.lang.reflect.Proxy;
 import java.math.BigDecimal;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * @author qiubaisen
@@ -32,7 +28,9 @@ public class DefaultResourceMethodTest extends InjectableCallerTest {
                     lastCall = new LastCall(
                             getMethodName(name, method.getParameterTypes()),
                             args == null ? List.of() : List.of(args));
-                    return "getList".equals(name) ? List.of() : null;
+                    if ("getList".equals(name)) return List.of();
+                    if ("throwWebApplicationException".equals(name)) throw new WebApplicationException(300);
+                    return null;
                 });
     }
 
@@ -55,6 +53,13 @@ public class DefaultResourceMethodTest extends InjectableCallerTest {
         assertNull(resourceMethod.call(context, builder));
     }
 
+    @Test
+    void should_not_wrap_around_web_application_exception() {
+        parameters.put("param", List.of("param"));
+
+        WebApplicationException exception = assertThrows(WebApplicationException.class, () -> callInjectable("throwWebApplicationException", String.class));
+        assertEquals(300, exception.getResponse().getStatus());
+    }
 
     @Override
     protected void callInjectable(String method, Class<?> type) throws NoSuchMethodException {
@@ -139,6 +144,9 @@ public class DefaultResourceMethodTest extends InjectableCallerTest {
 
         @GET
         String getContext(@Context UriInfo uriInfo);
+
+        @GET
+        String throwWebApplicationException(@PathParam("param") String value);
     }
 
     private static DefaultResourceMethod getResourceMethod(String methodName, Class... types) throws NoSuchMethodException {
