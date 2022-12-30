@@ -1,6 +1,7 @@
 plugins {
     `java-library`
     "jacoco"
+    `maven-publish`
 }
 
 
@@ -28,4 +29,12 @@ tasks.withType<Test>() {
 java {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
+}
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            artifactId = "container"
+            from(components["java"])
+        }
+    }
 }
